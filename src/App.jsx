@@ -4,6 +4,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import BottomNav from "./components/BottomNav";
 import { scheduleWaterReminder } from "./services/notifications";
+import { GoogleFit } from "capacitor-google-fit"; // Import plugin
 import "./App.css";
 
 function getTodayISO() {
@@ -18,12 +19,38 @@ function getYesterdayISO() {
 
 function App() {
   const [activePage, setActivePage] = useState("home");
+  const [isConnected, setIsConnected] = useState(false); // Connection State
 
+  // 1. Google Fit Connection Check & Theme Setup
   useEffect(() => {
     const theme = localStorage.getItem("theme") || "dark";
     document.body.className = `theme-${theme}`;
+
+    // Silent login check
+    const checkGoogleConnection = async () => {
+      try {
+        await GoogleFit.connect();
+        setIsConnected(true);
+      } catch (e) {
+        console.error("Google Fit Connection Error:", e); // Use ho gaya, error gayab!
+        setIsConnected(false);
+      }
+    };
+    checkGoogleConnection();
   }, []);
 
+  // 2. Handle Connect Button
+  const handleConnect = async () => {
+    try {
+      await GoogleFit.connect();
+      setIsConnected(true);
+    } catch (err) {
+      console.error("Connection failed", err);
+      alert("Bhai, Google Fit connect nahi ho paya. Console check kar!");
+    }
+  };
+
+  // 3. Notifications Setup
   useEffect(() => {
     async function setupNotifications() {
       const notificationsEnabled =
@@ -39,6 +66,7 @@ function App() {
     setupNotifications();
   }, []);
 
+  // 4. Streak & LocalStorage Logic (Wahi purana wala)
   useEffect(() => {
     const savedDate = localStorage.getItem("savedDate");
     const todayDate = getTodayISO();
@@ -90,15 +118,53 @@ function App() {
   }, []);
 
   return (
-    <div>
-      {activePage === "home" && <Dashboard />}
-      {activePage === "profile" && <Profile />}
-      {activePage === "settings" && (
-        <Settings
-          onThemeChange={(t) => (document.body.className = `theme-${t}`)}
-        />
+    <div className="main-wrapper">
+      {!isConnected ? (
+        // Login / Connect Screen
+        <div
+          style={{
+            height: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            background: "#121212",
+            color: "white",
+          }}
+        >
+          <h1 style={{ color: "#00d2ff" }}>Euexia</h1>
+          <p style={{ marginBottom: "20px", opacity: 0.8 }}>
+            Track your health with Google Fit
+          </p>
+          <button
+            onClick={handleConnect}
+            style={{
+              padding: "15px 30px",
+              borderRadius: "30px",
+              border: "none",
+              background: "linear-gradient(45deg, #00d2ff, #3a7bd5)",
+              color: "white",
+              fontWeight: "bold",
+              fontSize: "1rem",
+              cursor: "pointer",
+            }}
+          >
+            Connect My Health Data
+          </button>
+        </div>
+      ) : (
+        // Main App Content
+        <>
+          {activePage === "home" && <Dashboard />}
+          {activePage === "profile" && <Profile />}
+          {activePage === "settings" && (
+            <Settings
+              onThemeChange={(t) => (document.body.className = `theme-${t}`)}
+            />
+          )}
+          <BottomNav activePage={activePage} setActivePage={setActivePage} />
+        </>
       )}
-      <BottomNav activePage={activePage} setActivePage={setActivePage} />
     </div>
   );
 }
