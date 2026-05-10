@@ -3,11 +3,11 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import BottomNav from "./components/BottomNav";
+import { scheduleWaterReminder } from "./services/notifications";
 import "./App.css";
 
-// Consistent date format — har device pe same
 function getTodayISO() {
-  return new Date().toISOString().split("T")[0]; // "2026-04-26"
+  return new Date().toISOString().split("T")[0];
 }
 
 function getYesterdayISO() {
@@ -25,19 +25,32 @@ function App() {
   }, []);
 
   useEffect(() => {
+    async function setupNotifications() {
+      const notificationsEnabled =
+        localStorage.getItem("notifications") === "true";
+      if (notificationsEnabled) {
+        try {
+          await scheduleWaterReminder();
+        } catch (e) {
+          console.log("Notifications not supported:", e);
+        }
+      }
+    }
+    setupNotifications();
+  }, []);
+
+  useEffect(() => {
     const savedDate = localStorage.getItem("savedDate");
     const todayDate = getTodayISO();
 
     if (!savedDate) {
       localStorage.setItem("savedDate", todayDate);
-      // Pehli baar — streak 1 se shuru
       localStorage.setItem("streak", "1");
       localStorage.setItem("lastStreakDate", todayDate);
       return;
     }
 
     if (savedDate !== todayDate) {
-      // Naya din — weekly data save karo
       const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
         new Date().getDay()
       ];
@@ -50,7 +63,6 @@ function App() {
       };
       localStorage.setItem("weeklyData", JSON.stringify(weeklyData));
 
-      // Daily data reset
       localStorage.removeItem("steps");
       localStorage.removeItem("steps_date");
       localStorage.removeItem("water");
@@ -59,17 +71,16 @@ function App() {
       localStorage.removeItem("kms");
       localStorage.removeItem("stepCalories");
 
-      // Streak update — ISO format use karo
       const lastStreakDate = localStorage.getItem("lastStreakDate");
       const yesterdayDate = getYesterdayISO();
       let streak = Number(localStorage.getItem("streak")) || 0;
 
       if (lastStreakDate === yesterdayDate) {
-        streak = streak + 1; // Consecutive day
+        streak = streak + 1;
       } else if (lastStreakDate === todayDate) {
-        // Aaj already update hua — kuch mat karo
+        // already updated
       } else {
-        streak = 1; // Gap — reset
+        streak = 1;
       }
 
       localStorage.setItem("streak", String(streak));

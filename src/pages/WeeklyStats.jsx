@@ -32,7 +32,6 @@ function WeeklyStats() {
       <div className="card">
         <p className="card-label">Weekly Summary</p>
 
-        {/* Rings */}
         <div
           style={{
             display: "flex",
@@ -99,6 +98,10 @@ function WeeklyStats() {
               <div
                 key={day}
                 onClick={() => hasData && setSelectedDay(day)}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  hasData && setSelectedDay(day);
+                }}
                 style={{
                   flex: 1,
                   display: "flex",
@@ -138,10 +141,29 @@ function WeeklyStats() {
         </div>
       </div>
 
-      {/* Day Detail Modal */}
       {selectedDay && (
-        <div className="modal-overlay" onClick={() => setSelectedDay(null)}>
-          <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
+        <div
+          onClick={() => setSelectedDay(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "flex-end",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--surface)",
+              borderRadius: "28px 28px 0 0",
+              padding: "28px 20px 48px",
+              width: "100%",
+              borderTop: "1px solid var(--border)",
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -150,7 +172,13 @@ function WeeklyStats() {
                 marginBottom: "20px",
               }}
             >
-              <h2 style={{ fontSize: "1.4rem", fontWeight: "800" }}>
+              <h2
+                style={{
+                  fontSize: "1.4rem",
+                  fontWeight: "800",
+                  color: "var(--text)",
+                }}
+              >
                 {selectedDay}'s Stats
               </h2>
               <button
@@ -164,6 +192,7 @@ function WeeklyStats() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  cursor: "pointer",
                 }}
               >
                 <X size={16} color="var(--text)" />
