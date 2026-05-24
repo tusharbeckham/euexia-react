@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Trophy } from "lucide-react";
-import { GoogleFit } from "capacitor-google-fit";
-import { App } from "@capacitor/app"; // In-built core package, no installation needed
+import { registerPlugin } from "@getcapacitor/core";
+
+// 🚀 Apne banaye huye Android Native Plugin ko link kar rahe hain
+const StepSensor = registerPlugin("StepSensor");
 
 function StepCounter() {
   const today = new Date().toISOString().split("T")[0];
@@ -11,52 +13,29 @@ function StepCounter() {
   const kms = (steps * 0.000762).toFixed(2);
   const calories = Math.round(steps * 0.04);
 
-  // Saara syncing aur background-resume logic ek hi effect mein
   useEffect(() => {
-    const syncSteps = async () => {
+    // Ye function direct phone ke hardware sensor se steps layega
+    const fetchNativeSteps = async () => {
       try {
-        await GoogleFit.connect();
-        const now = new Date();
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-
-        const result = await GoogleFit.getSteps({
-          startTime: startOfDay.toISOString(),
-          endTime: now.toISOString(),
-        });
-
+        const result = await StepSensor.getSteps();
         if (result && result.value !== undefined) {
           setSteps(result.value);
         }
       } catch (err) {
-        console.error("Google Fit Sync Error:", err);
+        console.error("Hardware Sensor Error:", err);
       }
     };
 
-    // 1. App open hote hi pehli baar steps fetch karo
-    syncSteps();
+    // 1. App load hote hi turant data fetch karo
+    fetchNativeSteps();
 
-    // 2. Live tracking ke liye interval (jab app open ho)
-    const interval = setInterval(syncSteps, 30000);
+    // 2. Har 5 second mein background sensor se fresh data screen par laao
+    const interval = setInterval(fetchNativeSteps, 5000);
 
-    // 3. SMART BACKGROUND JUGAD: Jab user app ko background se foreground mein laaye
-    const appStateListener = App.addListener("appStateChange", (state) => {
-      if (state.isActive) {
-        console.log(
-          "App active ho gayi bhai, background steps sync ho rahe hain...",
-        );
-        syncSteps(); // Background ke saare steps turant load ho jayenge
-      }
-    });
-
-    // Cleanup functions
-    return () => {
-      clearInterval(interval);
-      appStateListener.then((listener) => listener.remove());
-    };
+    return () => clearInterval(interval);
   }, []);
 
-  // LocalStorage update karne ke liye alag effect
+  // LocalStorage update logic
   useEffect(() => {
     localStorage.setItem("steps", steps.toString());
     localStorage.setItem("steps_date", today);
@@ -69,7 +48,7 @@ function StepCounter() {
 
   return (
     <div className="card">
-      <p className="card-label">Steps Today</p>
+      <p className="card-label">Steps Today (Native Tracking)</p>
 
       <div
         style={{
