@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Footprints, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { GoogleFit } from "capacitor-google-fit";
+import { App } from "@capacitor/app"; // In-built core package, no installation needed
 
 function StepCounter() {
   const today = new Date().toISOString().split("T")[0];
@@ -10,9 +11,8 @@ function StepCounter() {
   const kms = (steps * 0.000762).toFixed(2);
   const calories = Math.round(steps * 0.04);
 
-  // Saara logic ek hi useEffect mein
+  // Saara syncing aur background-resume logic ek hi effect mein
   useEffect(() => {
-    // 1. Function ko andar hi define karo taaki red line hat jaye
     const syncSteps = async () => {
       try {
         await GoogleFit.connect();
@@ -33,14 +33,28 @@ function StepCounter() {
       }
     };
 
-    // 2. Turant call karo
+    // 1. App open hote hi pehli baar steps fetch karo
     syncSteps();
 
-    // 3. Interval set karo
+    // 2. Live tracking ke liye interval (jab app open ho)
     const interval = setInterval(syncSteps, 30000);
 
-    return () => clearInterval(interval);
-  }, []); // Empty array matlab ye sirf ek baar chalega mount par
+    // 3. SMART BACKGROUND JUGAD: Jab user app ko background se foreground mein laaye
+    const appStateListener = App.addListener("appStateChange", (state) => {
+      if (state.isActive) {
+        console.log(
+          "App active ho gayi bhai, background steps sync ho rahe hain...",
+        );
+        syncSteps(); // Background ke saare steps turant load ho jayenge
+      }
+    });
+
+    // Cleanup functions
+    return () => {
+      clearInterval(interval);
+      appStateListener.then((listener) => listener.remove());
+    };
+  }, []);
 
   // LocalStorage update karne ke liye alag effect
   useEffect(() => {
@@ -81,7 +95,7 @@ function StepCounter() {
         {isGoalDone && <Trophy size={24} color="#30d158" />}
       </div>
 
-      {/* Progress Bar and Stats remain same... */}
+      {/* Progress Bar */}
       <div
         style={{
           background: "var(--surface2)",

@@ -1,10 +1,16 @@
 import { useState, useEffect } from "react";
+import { App } from "@capacitor/app";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import BottomNav from "./components/BottomNav";
 import { scheduleWaterReminder } from "./services/notifications";
 import { GoogleFit } from "capacitor-google-fit"; // Import plugin
+import {
+  fetchTodayStepCount,
+  persistStepMetrics,
+  broadcastStepsSynced,
+} from "./services/googleFitSteps";
 import "./App.css";
 
 function getTodayISO() {
@@ -38,6 +44,26 @@ function App() {
     };
     checkGoogleConnection();
   }, []);
+
+  // Refresh steps from Google Fit when app returns to foreground (WebView was paused / user reopened app).
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const listenerPromise = App.addListener("appStateChange", async ({ isActive }) => {
+      if (!isActive) return;
+      try {
+        const count = await fetchTodayStepCount();
+        persistStepMetrics(count);
+        broadcastStepsSynced(count);
+      } catch (e) {
+        console.error("Steps refresh on resume:", e);
+      }
+    });
+
+    return () => {
+      void listenerPromise.then((handle) => handle.remove());
+    };
+  }, [isConnected]);
 
   // 2. Handle Connect Button
   const handleConnect = async () => {
