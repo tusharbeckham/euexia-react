@@ -1,0 +1,149 @@
+package com.euexia.app;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.Build;
+import android.os.IBinder;
+
+import androidx.annotation.Nullable;
+import androidx.core.app.NotificationCompat;
+
+/**
+ * BackgroundStepService — persistent Android Foreground Service.
+ *
+ * Responsibilities:
+ *   1. Registers TYPE_STEP_COUNTER so counting continues when the WebView is paused.
+ *   2. Persists the rolling count in SharedPreferences ("EuexiaSteps" / "steps")
+ *      so StepSensorPlugin can read it from the JS bridge thread without any sensor race.
+ *   3. Shows a required foreground notification (Android 8+).
+ */
+public class BackgroundStepService extends Service implements SensorEventListener {
+
+    // ── Public constants (also used by StepSensorPlugin) ─────────────────────
+    public static final String PREFS_NAME = "EuexiaSteps";
+    public static final String KEY_STEPS  = "steps";
+
+    // ── Private constants ─────────────────────────────────────────────────────
+    private static final String CHANNEL_ID = "euexia_step_channel";
+    private static final int    NOTIF_ID   = 1001;
+
+    // ── Fields ────────────────────────────────────────────────────────────────
+    private SensorManager     sensorManager;
+    private Sensor            stepSensor;
+    private SharedPreferences prefs;
+    private int               stepCount = 0;
+
+    // ── Service lifecycle ─────────────────────────────────────────────────────
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+        prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        // Restore previous count so a service restart doesn't zero out the display.
+        stepCount = prefs.getInt(KEY_STEPS, 0);
+
+        createNotificationChannel();
+        startForeground(NOTIF_ID, buildNotification(stepCount));
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        if (sensorManager != null) {
+            stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+            if (stepSensor != null) {
+                sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_UI);
+            }
+        }
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        // START_STICKY: OS will restart the service if killed, keeping step counting alive.
+        return START_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        if (sensorManager != null) {
+            sensorManager.unregisterListener(this);
+        }
+        super.onDestroy();
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null; // Not a bound service
+    }
+
+    // ── SensorEventListener ───────────────────────────────────────────────────
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
+            stepCount = (int) event.values[0];
+
+            // Commit immediately (apply is async but fine for step data).
+            prefs.edit().putInt(KEY_STEPS, stepCount).apply();
+
+            // Update the persistent notification with the latest count.
+            NotificationManager nm =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) {
+                nm.notify(NOTIF_ID, buildNotification(stepCount));
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Not needed for step counting.
+    }
+
+    // ── Notification helpers ──────────────────────────────────────────────────
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                "Step Tracking",
+                NotificationManager.IMPORTANCE_LOW  // silent – no sound or vibration
+            );
+            channel.setDescription("Keeps Euexia counting your steps in the background");
+            channel.setShowBadge(false);
+
+            NotificationManager nm = (NotificationManager)
+                getSystemService(NotificationManager.class);
+            if (nm != null) {
+                nm.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private Notification buildNotification(int currentSteps) {
+        Intent launchIntent = new Intent(this, MainActivity.class);
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+            this, 0, launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        return new NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Euexia — Step Tracker")
+            .setContentText(currentSteps + " steps counted today")
+            .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
+            .setOngoing(true)        // Cannot be dismissed by the user
+            .setOnlyAlertOnce(true)  // Suppress repeated alerts on updates
+            .setContentIntent(pendingIntent)
+            .build();
+    }
+}

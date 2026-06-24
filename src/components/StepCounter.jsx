@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Trophy } from "lucide-react";
-import { registerPlugin } from "@getcapacitor/core";
+import { registerPlugin } from "@capacitor/core";
 
 // 🚀 Apne banaye huye Android Native Plugin ko link kar rahe hain
 const StepSensor = registerPlugin("StepSensor");
@@ -32,8 +32,21 @@ function StepCounter() {
     // 2. Har 5 second mein background sensor se fresh data screen par laao
     const interval = setInterval(fetchNativeSteps, 5000);
 
-    return () => clearInterval(interval);
+    // 3. Jab user app pe wapas aaye (background se foreground) to turant refresh karo
+    //    Isse 5-second stale window eliminate ho jati hai.
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchNativeSteps();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
+
 
   // LocalStorage update logic
   useEffect(() => {

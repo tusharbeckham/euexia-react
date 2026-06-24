@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { App } from "@capacitor/app";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
