@@ -41,7 +41,15 @@ public class BackgroundStepService extends Service implements SensorEventListene
     private SensorManager     sensorManager;
     private Sensor            stepSensor;
     private SharedPreferences prefs;
-    private int               stepCount = 0;
+    
+    private int todaySteps = 0;
+    private int lastSensorValue = -1;
+    private String savedDate = "";
+
+    // Helper to get today's date string
+    private String getTodayString() {
+        return new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(new java.util.Date());
+    }
 
     // ── Service lifecycle ─────────────────────────────────────────────────────
 
@@ -50,11 +58,24 @@ public class BackgroundStepService extends Service implements SensorEventListene
         super.onCreate();
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        // Restore previous count so a service restart doesn't zero out the display.
-        stepCount = prefs.getInt(KEY_STEPS, 0);
+        
+        todaySteps = prefs.getInt(KEY_STEPS, 0);
+        lastSensorValue = prefs.getInt("lastSensorValue", -1);
+        savedDate = prefs.getString("stepsDate", "");
+
+        // Check if a new day started while the service was dead
+        String todayDate = getTodayString();
+        if (!savedDate.equals(todayDate)) {
+            todaySteps = 0;
+            savedDate = todayDate;
+            prefs.edit()
+                 .putInt(KEY_STEPS, 0)
+                 .putString("stepsDate", todayDate)
+                 .apply();
+        }
 
         createNotificationChannel();
-        startForeground(NOTIF_ID, buildNotification(stepCount));
+        startForeground(NOTIF_ID, buildNotification(todaySteps));
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         if (sensorManager != null) {
@@ -67,7 +88,6 @@ public class BackgroundStepService extends Service implements SensorEventListene
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // START_STICKY: OS will restart the service if killed, keeping step counting alive.
         return START_STICKY;
     }
 
@@ -82,7 +102,7 @@ public class BackgroundStepService extends Service implements SensorEventListene
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        return null; // Not a bound service
+        return null;
     }
 
     // ── SensorEventListener ───────────────────────────────────────────────────
@@ -90,23 +110,44 @@ public class BackgroundStepService extends Service implements SensorEventListene
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
-            stepCount = (int) event.values[0];
+            int currentSensorValue = (int) event.values[0];
 
-            // Commit immediately (apply is async but fine for step data).
-            prefs.edit().putInt(KEY_STEPS, stepCount).apply();
+            // Initialize or handle device reboot (where sensor value resets to 0)
+            if (lastSensorValue == -1 || currentSensorValue < lastSensorValue) {
+                lastSensorValue = currentSensorValue;
+            }
 
-            // Update the persistent notification with the latest count.
+            int delta = currentSensorValue - lastSensorValue;
+
+            // Handle midnight reset while service is running
+            String todayDate = getTodayString();
+            if (!savedDate.equals(todayDate)) {
+                todaySteps = 0;
+                savedDate = todayDate;
+            }
+
+            todaySteps += delta;
+            lastSensorValue = currentSensorValue;
+
+            // Commit immediately
+            prefs.edit()
+                 .putInt(KEY_STEPS, todaySteps)
+                 .putInt("lastSensorValue", lastSensorValue)
+                 .putString("stepsDate", savedDate)
+                 .apply();
+
+            // Update the persistent notification with the latest count
             NotificationManager nm =
                 (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) {
-                nm.notify(NOTIF_ID, buildNotification(stepCount));
+                nm.notify(NOTIF_ID, buildNotification(todaySteps));
             }
         }
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // Not needed for step counting.
+        // Not needed
     }
 
     // ── Notification helpers ──────────────────────────────────────────────────
