@@ -1,4 +1,14 @@
-import { GoogleFit } from "capacitor-google-fit";
+import { Capacitor } from "@capacitor/core";
+
+// GoogleFit is only available on native Android — dynamic import prevents
+// the module from being resolved (and crashing) when running in a browser.
+let GoogleFit = null;
+if (Capacitor.isNativePlatform()) {
+  // eslint-disable-next-line no-undef
+  import("capacitor-google-fit").then((m) => {
+    GoogleFit = m.GoogleFit;
+  });
+}
 
 export const STEPS_SYNCED_EVENT = "euexia-steps-synced";
 
@@ -11,6 +21,10 @@ export function readCachedStepsToday() {
 }
 
 export async function fetchTodayStepCount() {
+  if (!Capacitor.isNativePlatform() || !GoogleFit) {
+    // On web, return the localStorage-cached value.
+    return readCachedStepsToday();
+  }
   await GoogleFit.connect();
   const now = new Date();
   const startOfDay = new Date();

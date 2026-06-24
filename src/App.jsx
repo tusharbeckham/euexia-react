@@ -3,14 +3,33 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import BottomNav from "./components/BottomNav";
+import { Capacitor } from "@capacitor/core";
 import { scheduleWaterReminder } from "./services/notifications";
-import { GoogleFit } from "capacitor-google-fit"; // Import plugin
 import {
   fetchTodayStepCount,
   persistStepMetrics,
   broadcastStepsSynced,
 } from "./services/googleFitSteps";
 import "./App.css";
+
+// @capacitor/app's App plugin — only imported & used on native.
+// We lazy-import it to avoid crashing in a browser environment.
+let CapacitorApp = null;
+if (Capacitor.isNativePlatform()) {
+  import("@capacitor/app").then((m) => {
+    CapacitorApp = m.App;
+  });
+}
+
+// GoogleFit plugin — native only, lazy-imported so web builds don't fail.
+let GoogleFit = null;
+if (Capacitor.isNativePlatform()) {
+  import("capacitor-google-fit").then((m) => {
+    GoogleFit = m.GoogleFit;
+  });
+}
+
+const isNative = Capacitor.isNativePlatform();
 
 function getTodayISO() {
   return new Date().toISOString().split("T")[0];
@@ -24,56 +43,71 @@ function getYesterdayISO() {
 
 function App() {
   const [activePage, setActivePage] = useState("home");
-  const [isConnected, setIsConnected] = useState(false); // Connection State
+
+  // On web (Vercel), skip the GoogleFit connect screen entirely — go straight
+  // to the dashboard. On native Android, we still require a successful connect.
+  const [isConnected, setIsConnected] = useState(!isNative);
 
   // 1. Google Fit Connection Check & Theme Setup
   useEffect(() => {
     const theme = localStorage.getItem("theme") || "dark";
     document.body.className = `theme-${theme}`;
 
-    // Silent login check
+    if (!isNative) return; // Nothing to check in a browser
+
     const checkGoogleConnection = async () => {
       try {
-        await GoogleFit.connect();
-        setIsConnected(true);
+        if (GoogleFit) {
+          await GoogleFit.connect();
+          setIsConnected(true);
+        }
       } catch (e) {
-        console.error("Google Fit Connection Error:", e); // Use ho gaya, error gayab!
+        console.error("Google Fit Connection Error:", e);
         setIsConnected(false);
       }
     };
     checkGoogleConnection();
   }, []);
 
-  // Refresh steps from Google Fit when app returns to foreground (WebView was paused / user reopened app).
+  // Refresh steps from Google Fit when app returns to foreground.
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !isNative) return;
 
-    const listenerPromise = App.addListener("appStateChange", async ({ isActive }) => {
-      if (!isActive) return;
-      try {
-        const count = await fetchTodayStepCount();
-        persistStepMetrics(count);
-        broadcastStepsSynced(count);
-      } catch (e) {
-        console.error("Steps refresh on resume:", e);
-      }
-    });
+    let handle = null;
+    const attach = async () => {
+      if (!CapacitorApp) return;
+      handle = await CapacitorApp.addListener("appStateChange", async ({ isActive }) => {
+        if (!isActive) return;
+        try {
+          const count = await fetchTodayStepCount();
+          persistStepMetrics(count);
+          broadcastStepsSynced(count);
+        } catch (e) {
+          console.error("Steps refresh on resume:", e);
+        }
+      });
+    };
+    attach();
 
     return () => {
-      void listenerPromise.then((handle) => handle.remove());
+      if (handle) handle.remove();
     };
   }, [isConnected]);
 
-  // 2. Handle Connect Button
+  // 2. Handle Connect Button (native only)
   const handleConnect = async () => {
     try {
-      await GoogleFit.connect();
+      if (GoogleFit) {
+        await GoogleFit.connect();
+      }
       setIsConnected(true);
     } catch (err) {
       console.error("Connection failed", err);
       alert("Bhai, Google Fit connect nahi ho paya. Console check kar!");
     }
   };
+
+
 
   // 3. Notifications Setup
   useEffect(() => {

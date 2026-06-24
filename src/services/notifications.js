@@ -1,12 +1,24 @@
-import { LocalNotifications } from "@capacitor/local-notifications";
+import { Capacitor } from "@capacitor/core";
+
+// LocalNotifications is native-only — guard every call so it's a silent
+// no-op when running in a browser (Vercel preview, dev server, etc.).
+async function getPlugin() {
+  if (!Capacitor.isNativePlatform()) return null;
+  const { LocalNotifications } = await import("@capacitor/local-notifications");
+  return LocalNotifications;
+}
 
 export async function requestNotificationPermission() {
-  const result = await LocalNotifications.requestPermissions();
+  const plugin = await getPlugin();
+  if (!plugin) return false;
+  const result = await plugin.requestPermissions();
   return result.display === "granted";
 }
 
 export async function scheduleWaterReminder() {
-  await LocalNotifications.schedule({
+  const plugin = await getPlugin();
+  if (!plugin) return;
+  await plugin.schedule({
     notifications: [
       {
         id: 1,
@@ -40,5 +52,7 @@ export async function scheduleWaterReminder() {
 }
 
 export async function cancelAllNotifications() {
-  await LocalNotifications.cancelAll();
+  const plugin = await getPlugin();
+  if (!plugin) return;
+  await plugin.cancelAll();
 }
