@@ -31,14 +31,24 @@ if (Capacitor.isNativePlatform()) {
 
 const isNative = Capacitor.isNativePlatform();
 
+// Day starts at 5:00 AM locally instead of midnight.
 function getTodayISO() {
-  return new Date().toISOString().split("T")[0];
+  const d = new Date();
+  d.setHours(d.getHours() - 5); // Anything before 5 AM falls into yesterday's bucket
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function getYesterdayISO() {
   const d = new Date();
+  d.setHours(d.getHours() - 5);
   d.setDate(d.getDate() - 1);
-  return d.toISOString().split("T")[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function App() {

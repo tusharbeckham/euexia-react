@@ -46,9 +46,11 @@ public class BackgroundStepService extends Service implements SensorEventListene
     private int lastSensorValue = -1;
     private String savedDate = "";
 
-    // Helper to get today's date string
+    // Helper to get today's date string (logical day starts at 5:00 AM)
     private String getTodayString() {
-        return new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(new java.util.Date());
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.add(java.util.Calendar.HOUR_OF_DAY, -5);
+        return new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(cal.getTime());
     }
 
     // ── Service lifecycle ─────────────────────────────────────────────────────

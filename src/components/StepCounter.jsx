@@ -9,7 +9,13 @@ const isNative = Capacitor.isNativePlatform();
 const StepSensor = isNative ? registerPlugin("StepSensor") : null;
 
 function StepCounter() {
-  const today = new Date().toISOString().split("T")[0];
+  // Day starts at 5:00 AM locally instead of midnight.
+  const d = new Date();
+  d.setHours(d.getHours() - 5);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const today = `${y}-${m}-${day}`;
 
   // On web, seed state from localStorage so the UI isn't always 0.
   const cachedSteps =
