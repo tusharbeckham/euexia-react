@@ -44,9 +44,8 @@ function getYesterdayISO() {
 function App() {
   const [activePage, setActivePage] = useState("home");
 
-  // On web (Vercel), skip the GoogleFit connect screen entirely — go straight
-  // to the dashboard. On native Android, we still require a successful connect.
-  const [isConnected, setIsConnected] = useState(!isNative);
+  // Show the Connect screen on both web and native.
+  const [isConnected, setIsConnected] = useState(false);
 
   // 1. Google Fit Connection Check & Theme Setup
   useEffect(() => {
@@ -94,10 +93,10 @@ function App() {
     };
   }, [isConnected]);
 
-  // 2. Handle Connect Button (native only)
+  // 2. Handle Connect Button
   const handleConnect = async () => {
     try {
-      if (GoogleFit) {
+      if (isNative && GoogleFit) {
         await GoogleFit.connect();
       }
       setIsConnected(true);

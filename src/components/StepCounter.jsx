@@ -73,12 +73,13 @@ function StepCounter() {
     <div className="card">
       <p className="card-label">Steps Today (Native Tracking)</p>
 
+      {/* Big step number + goal */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          marginBottom: "8px",
+          alignItems: "baseline",
+          gap: "8px",
+          marginBottom: "12px",
         }}
       >
         <span
@@ -95,6 +96,59 @@ function StepCounter() {
           / {goal.toLocaleString()}
         </span>
         {isGoalDone && <Trophy size={24} color="#30d158" />}
+      </div>
+
+      {/* Distance + Calories sub-cards — exactly like the screenshot */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
+        <div
+          style={{
+            flex: 1,
+            background: "var(--surface2)",
+            borderRadius: "12px",
+            padding: "10px 14px",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <p
+            style={{
+              fontSize: "0.65rem",
+              color: "var(--muted)",
+              letterSpacing: "0.08em",
+              marginBottom: "4px",
+              textTransform: "uppercase",
+            }}
+          >
+            Distance
+          </p>
+          <span style={{ fontSize: "1.1rem", fontWeight: "700", color: "#0a84ff" }}>
+            {kms} km
+          </span>
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            background: "var(--surface2)",
+            borderRadius: "12px",
+            padding: "10px 14px",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <p
+            style={{
+              fontSize: "0.65rem",
+              color: "var(--muted)",
+              letterSpacing: "0.08em",
+              marginBottom: "4px",
+              textTransform: "uppercase",
+            }}
+          >
+            Calories
+          </p>
+          <span style={{ fontSize: "1.1rem", fontWeight: "700", color: "#ff9f0a" }}>
+            {calories} cal
+          </span>
+        </div>
       </div>
 
       {/* Progress Bar */}
@@ -114,11 +168,24 @@ function StepCounter() {
               ? "#30d158"
               : "linear-gradient(90deg, #30d158, #00ff88)",
             borderRadius: "99px",
+            transition: "width 0.6s ease",
           }}
         />
       </div>
+
+      <p
+        style={{
+          fontSize: "0.75rem",
+          color: "var(--muted)",
+          marginTop: "6px",
+          textAlign: "right",
+        }}
+      >
+        {Math.round(percent)}% of daily goal
+      </p>
     </div>
   );
 }
 
-export default StepCounter;
+export default StepCounter;
+
