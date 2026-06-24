@@ -119,7 +119,11 @@ function Dashboard() {
   let GreetIcon = Moon;
   let iconColor = "#5e5ce6";
 
-  if (hour < 12) {
+  if (hour < 5) {
+    greeting = "Good Night";
+    GreetIcon = Moon;
+    iconColor = "#5e5ce6";
+  } else if (hour < 12) {
     greeting = "Good Morning";
     GreetIcon = Sun;
     iconColor = "#ff9f0a";

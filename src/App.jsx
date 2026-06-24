@@ -131,18 +131,22 @@ function App() {
 
     if (!savedDate) {
       localStorage.setItem("savedDate", todayDate);
-      localStorage.setItem("streak", "1");
+      localStorage.setItem("streak", "0");
       localStorage.setItem("lastStreakDate", todayDate);
       return;
     }
 
     if (savedDate !== todayDate) {
+      const yesterdaySteps = Number(localStorage.getItem("steps")) || 0;
+      const stepGoal = Number(localStorage.getItem("goal_steps")) || 10000;
+      const goalCompleted = yesterdaySteps >= stepGoal;
+
       const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
         new Date().getDay()
       ];
       const weeklyData = JSON.parse(localStorage.getItem("weeklyData")) || {};
       weeklyData[dayName] = {
-        steps: Number(localStorage.getItem("steps")) || 0,
+        steps: yesterdaySteps,
         water: Number(localStorage.getItem("water")) || 0,
         calories: Number(localStorage.getItem("stepCalories")) || 0,
         kms: Number(localStorage.getItem("kms")) || 0,
@@ -162,11 +166,15 @@ function App() {
       let streak = Number(localStorage.getItem("streak")) || 0;
 
       if (lastStreakDate === yesterdayDate) {
-        streak = streak + 1;
+        if (goalCompleted) {
+          streak = streak + 1;
+        } else {
+          streak = 0;
+        }
       } else if (lastStreakDate === todayDate) {
         // already updated
       } else {
-        streak = 1;
+        streak = 0;
       }
 
       localStorage.setItem("streak", String(streak));

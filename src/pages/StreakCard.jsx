@@ -3,7 +3,8 @@ import { Flame } from "lucide-react";
 function StreakCard() {
   const days = ["M", "T", "W", "T", "F", "S", "S"];
   const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
-  const streak = Number(localStorage.getItem("streak")) || 1;
+  const streakStr = localStorage.getItem("streak");
+  const streak = streakStr !== null ? Number(streakStr) : 0;
 
   return (
     <div className="card">
@@ -50,8 +51,9 @@ function StreakCard() {
             >
               <div
                 style={{
-                  width: "100%",
-                  aspectRatio: "1",
+                  width: "36px",
+                  height: "36px",
+                  flexShrink: 0,
                   borderRadius: "50%",
                   background: isActive
                     ? "linear-gradient(135deg, #ff9f0a, #cc7a00)"
