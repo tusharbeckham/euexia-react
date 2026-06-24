@@ -3,6 +3,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import BottomNav from "./components/BottomNav";
+import { Activity } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { scheduleWaterReminder } from "./services/notifications";
 import {
@@ -197,35 +198,39 @@ function App() {
     <div className="main-wrapper">
       {!isConnected ? (
         // Login / Connect Screen
-        <div
-          style={{
-            height: "100vh",
+        <div className="animate" style={{
+            minHeight: "100vh",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
-            background: "#121212",
-            color: "white",
+            background: "radial-gradient(circle at top right, rgba(48, 209, 88, 0.15), transparent 60%), var(--bg)",
+            color: "var(--text)",
+            padding: "24px",
+            textAlign: "center"
           }}
         >
-          <h1 style={{ color: "#00d2ff" }}>Euexia</h1>
-          <p style={{ marginBottom: "20px", opacity: 0.8 }}>
-            Track your health with Google Fit
+          <div style={{
+            background: 'var(--surface2)',
+            padding: '24px',
+            borderRadius: '50%',
+            marginBottom: '24px',
+            boxShadow: '0 8px 32px rgba(48, 209, 88, 0.2)',
+            border: '1px solid var(--nav-border)'
+          }}>
+            <Activity size={48} color="#30d158" />
+          </div>
+
+          <h1 style={{ fontSize: "2.4rem", fontWeight: "800", marginBottom: "12px", letterSpacing: "-0.5px" }}>
+            Welcome to <span style={{ color: "#30d158" }}>Euexia</span>
+          </h1>
+          
+          <p style={{ color: "var(--muted)", fontSize: "1.05rem", lineHeight: "1.6", marginBottom: "40px", maxWidth: "300px" }}>
+            Your personal health companion. Start tracking your daily steps, water intake, and workouts.
           </p>
-          <button
-            onClick={handleConnect}
-            style={{
-              padding: "15px 30px",
-              borderRadius: "30px",
-              border: "none",
-              background: "linear-gradient(45deg, #00d2ff, #3a7bd5)",
-              color: "white",
-              fontWeight: "bold",
-              fontSize: "1rem",
-              cursor: "pointer",
-            }}
-          >
-            Connect My Health Data
+
+          <button className="primary-btn" onClick={handleConnect} style={{ maxWidth: '300px' }}>
+            <Activity size={20} /> Start Tracking
           </button>
         </div>
       ) : (

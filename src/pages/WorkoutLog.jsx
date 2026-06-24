@@ -293,35 +293,13 @@ function WorkoutLog() {
           ≈ {previewCal} calories will be burned
         </p>
       )}
-
       <button
+        className="primary-btn orange"
         onClick={addWorkout}
-        style={{
-          width: "100%",
-          padding: "14px",
-          background: "linear-gradient(135deg, #ff9f0a, #cc7a00)",
-          border: "none",
-          borderRadius: "14px",
-          color: "#000",
-          fontSize: "1rem",
-          fontWeight: "700",
-          cursor: "pointer",
-          boxShadow: "0 4px 20px rgba(255,159,10,0.3)",
-        }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "8px",
-          }}
-        >
-          <Dumbbell size={18} />
-          Log Workout
-        </div>
+        <Dumbbell size={18} />
+        Log Workout
       </button>
-
       <div style={{ marginTop: "14px" }}>
         {workouts.map((w, i) => (
           <div

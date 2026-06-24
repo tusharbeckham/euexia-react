@@ -87,19 +87,8 @@ function Profile() {
         ))}
 
         <button
+          className="primary-btn"
           onClick={handleSave}
-          style={{
-            width: "100%",
-            padding: "14px",
-            background: "linear-gradient(135deg, #30d158, #25a244)",
-            border: "none",
-            borderRadius: "14px",
-            color: "#000",
-            fontSize: "1rem",
-            fontWeight: "700",
-            cursor: "pointer",
-            marginTop: "8px",
-          }}
         >
           Save Profile
         </button>

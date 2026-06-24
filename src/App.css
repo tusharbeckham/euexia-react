@@ -182,6 +182,66 @@ nav button.active {
     color: var(--muted);
 }
 
+/* ─── BUTTONS ────────────────────────────── */
+.primary-btn {
+    width: 100%;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, #30d158, #28a745);
+    color: #ffffff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(48, 209, 88, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 0.3px;
+}
+
+.primary-btn.blue {
+    background: linear-gradient(135deg, #0a84ff, #0066cc);
+    box-shadow: 0 4px 15px rgba(10, 132, 255, 0.3);
+}
+
+.primary-btn.orange {
+    background: linear-gradient(135deg, #ff9f0a, #cc7a00);
+    box-shadow: 0 4px 15px rgba(255, 159, 10, 0.3);
+    color: #000;
+}
+
+.primary-btn:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+}
+.primary-btn:active:not(.blue):not(.orange) { box-shadow: 0 2px 8px rgba(48, 209, 88, 0.2); }
+.primary-btn.blue:active { box-shadow: 0 2px 8px rgba(10, 132, 255, 0.2); }
+.primary-btn.orange:active { box-shadow: 0 2px 8px rgba(255, 159, 10, 0.2); }
+
+.secondary-btn {
+    width: 100%;
+    padding: 16px 24px;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.secondary-btn:active {
+    transform: scale(0.96);
+}
+
 /* ─── GOAL BANNERS ───────────────────────── */
 .goal-banner {
     border-radius: 14px;

@@ -72,30 +72,11 @@ function WaterTracker() {
       </div>
 
       <button
+        className="primary-btn blue"
         onClick={addGlass}
-        style={{
-          width: "100%",
-          padding: "14px",
-          background: "linear-gradient(135deg, #0a84ff, #0066cc)",
-          border: "none",
-          borderRadius: "14px",
-          color: "#fff",
-          fontSize: "1rem",
-          fontWeight: "700",
-          cursor: "pointer",
-        }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "8px",
-          }}
-        >
-          <Droplets size={18} />
-          Add Glass
-        </div>
+        <Droplets size={18} />
+        Add Glass
       </button>
     </div>
   );
