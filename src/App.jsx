@@ -4,9 +4,10 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import BottomNav from "./components/BottomNav";
 import StreakCelebration from "./components/StreakCelebration";
-import { Activity } from "lucide-react";
+import Auth from "./pages/Auth";
 import { Capacitor } from "@capacitor/core";
 import { scheduleWaterReminder } from "./services/notifications";
+import { supabase } from "./services/supabase";
 import {
   fetchTodayStepCount,
   persistStepMetrics,
@@ -14,67 +15,64 @@ import {
 } from "./services/googleFitSteps";
 import "./App.css";
 
-// @capacitor/app's App plugin — only imported & used on native.
-// We lazy-import it to avoid crashing in a browser environment.
 let CapacitorApp = null;
 if (Capacitor.isNativePlatform()) {
-  import("@capacitor/app").then((m) => {
-    CapacitorApp = m.App;
-  });
+  import("@capacitor/app").then((m) => { CapacitorApp = m.App; });
 }
 
-// GoogleFit plugin — native only, lazy-imported so web builds don't fail.
 let GoogleFit = null;
 if (Capacitor.isNativePlatform()) {
-  import("capacitor-google-fit").then((m) => {
-    GoogleFit = m.GoogleFit;
-  });
+  import("capacitor-google-fit").then((m) => { GoogleFit = m.GoogleFit; });
 }
 
 const isNative = Capacitor.isNativePlatform();
 
-// Day starts at 5:00 AM locally instead of midnight.
 function getTodayISO() {
   const d = new Date();
-  d.setHours(d.getHours() - 5); // Anything before 5 AM falls into yesterday's bucket
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  d.setHours(d.getHours() - 5);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
 function getYesterdayISO() {
   const d = new Date();
   d.setHours(d.getHours() - 5);
   d.setDate(d.getDate() - 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-// Same -5h day boundary, but returns the weekday name (Sun..Sat) instead of
-// an ISO date. Used to file a finished day's totals under the *correct*
-// weekday key in weeklyData.
 function getWeekdayName(offsetDays = 0) {
   const d = new Date();
   d.setHours(d.getHours() - 5);
   d.setDate(d.getDate() + offsetDays);
-  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
+  return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
 }
 
 function App() {
   const [activePage, setActivePage] = useState("home");
-
-  // Show the Connect screen on both web and native.
   const [isConnected, setIsConnected] = useState(false);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // 1. Google Fit Connection Check & Theme Setup
+  // Auth state listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Theme + Google Fit connection
   useEffect(() => {
     const theme = localStorage.getItem("theme") || "dark";
     document.body.className = `theme-${theme}`;
 
-    if (!isNative) return; // Nothing to check in a browser
+    if (!isNative) return;
 
     const checkGoogleConnection = async () => {
       try {
@@ -90,10 +88,9 @@ function App() {
     checkGoogleConnection();
   }, []);
 
-  // Refresh steps from Google Fit when app returns to foreground.
+  // Steps refresh on app resume
   useEffect(() => {
     if (!isConnected || !isNative) return;
-
     let handle = null;
     const attach = async () => {
       if (!CapacitorApp) return;
@@ -109,18 +106,12 @@ function App() {
       });
     };
     attach();
-
-    return () => {
-      if (handle) handle.remove();
-    };
+    return () => { if (handle) handle.remove(); };
   }, [isConnected]);
 
-  // 2. Handle Connect Button
   const handleConnect = async () => {
     try {
-      if (isNative && GoogleFit) {
-        await GoogleFit.connect();
-      }
+      if (isNative && GoogleFit) await GoogleFit.connect();
       setIsConnected(true);
     } catch (err) {
       console.error("Connection failed", err);
@@ -128,25 +119,19 @@ function App() {
     }
   };
 
-
-
-  // 3. Notifications Setup
+  // Notifications
   useEffect(() => {
     async function setupNotifications() {
-      const notificationsEnabled =
-        localStorage.getItem("notifications") === "true";
+      const notificationsEnabled = localStorage.getItem("notifications") === "true";
       if (notificationsEnabled) {
-        try {
-          await scheduleWaterReminder();
-        } catch (e) {
-          console.log("Notifications not supported:", e);
-        }
+        try { await scheduleWaterReminder(); }
+        catch (e) { console.log("Notifications not supported:", e); }
       }
     }
     setupNotifications();
   }, []);
 
-  // 4. Streak & LocalStorage Logic (Wahi purana wala)
+  // Streak & day rollover logic
   useEffect(() => {
     const savedDate = localStorage.getItem("savedDate");
     const todayDate = getTodayISO();
@@ -163,10 +148,6 @@ function App() {
       const stepGoal = Number(localStorage.getItem("goal_steps")) || 10000;
       const goalCompleted = yesterdaySteps >= stepGoal;
 
-      // FIX: this is yesterday's data finishing up, so it must be filed
-      // under *yesterday's* weekday — not today's. The old code used
-      // `new Date().getDay()` (today), which silently shifted every day's
-      // numbers onto the wrong bar in Weekly Summary.
       const dayName = getWeekdayName(-1);
       const weeklyData = JSON.parse(localStorage.getItem("weeklyData")) || {};
       weeklyData[dayName] = {
@@ -192,19 +173,11 @@ function App() {
       if (lastStreakDate === yesterdayDate) {
         if (goalCompleted) {
           streak = streak + 1;
-          // Queue the fire animation for the NEXT render — StreakCelebration
-          // reads + immediately clears this key, so it only ever fires once
-          // per increment, no matter how many times the app is reopened today.
-          localStorage.setItem(
-            "streakCelebration",
-            JSON.stringify({ streak, date: todayDate }),
-          );
+          localStorage.setItem("streakCelebration", JSON.stringify({ streak, date: todayDate }));
         } else {
           streak = 0;
         }
-      } else if (lastStreakDate === todayDate) {
-        // already updated
-      } else {
+      } else if (lastStreakDate !== todayDate) {
         streak = 0;
       }
 
@@ -214,59 +187,38 @@ function App() {
     }
   }, []);
 
+  // Show nothing while checking auth
+  if (authLoading) return null;
+
+  // Show auth screen if not logged in
+  if (!user) return <Auth />;
+
   return (
     <div className="main-wrapper">
       <StreakCelebration />
-      {!isConnected ? (
-        // Login / Connect Screen
+      {!isConnected && isNative ? (
         <div className="animate" style={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            background: "radial-gradient(circle at top right, rgba(48, 209, 88, 0.15), transparent 60%), var(--bg)",
-            color: "var(--text)",
-            padding: "24px",
-            textAlign: "center"
-          }}
-        >
-          <h1 style={{ fontSize: "2.4rem", fontWeight: "800", marginBottom: "12px", letterSpacing: "-0.5px" }}>
+          minHeight: "100vh", display: "flex", flexDirection: "column",
+          justifyContent: "center", alignItems: "center",
+          background: "radial-gradient(circle at top right, rgba(48,209,88,0.15), transparent 60%), var(--bg)",
+          color: "var(--text)", padding: "24px", textAlign: "center"
+        }}>
+          <h1 style={{ fontSize: "2.4rem", fontWeight: "800", marginBottom: "12px" }}>
             Welcome to <span style={{ color: "#30d158" }}>Euexia</span>
           </h1>
-
-          <p style={{
-              color: "var(--text2)",
-              opacity: 0.78,
-              fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
-              fontWeight: "500",
-              fontSize: "1.02rem",
-              lineHeight: "1.6",
-              letterSpacing: "-0.1px",
-              marginBottom: "40px",
-              maxWidth: "300px"
-            }}>
-            Your personal health companion. Start tracking your daily steps, water intake, and workouts.
+          <p style={{ color: "var(--text2)", opacity: 0.78, fontSize: "1.02rem", lineHeight: "1.6", marginBottom: "40px", maxWidth: "300px" }}>
+            Connect Google Fit to start tracking your steps.
           </p>
-
-          <button className="primary-btn" onClick={handleConnect} style={{
-              maxWidth: '300px',
-              fontSize: '1.05rem',
-              letterSpacing: '0.2px',
-              boxShadow: '0 6px 20px rgba(48, 209, 88, 0.35), inset 0 1px 0 rgba(255,255,255,0.18)'
-            }}>
-            <Activity size={20} /> Start Tracking
+          <button className="primary-btn" onClick={handleConnect} style={{ maxWidth: "300px" }}>
+            Connect Google Fit
           </button>
         </div>
       ) : (
-        // Main App Content
         <>
           {activePage === "home" && <Dashboard />}
           {activePage === "profile" && <Profile />}
           {activePage === "settings" && (
-            <Settings
-              onThemeChange={(t) => (document.body.className = `theme-${t}`)}
-            />
+            <Settings onThemeChange={(t) => (document.body.className = `theme-${t}`)} />
           )}
           <BottomNav activePage={activePage} setActivePage={setActivePage} />
         </>
