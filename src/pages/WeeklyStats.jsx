@@ -1,11 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Footprints, Droplets, Flame, MapPin } from "lucide-react";
 import Ring from "../components/Ring";
+
+// Same -5h day boundary used everywhere else in the app (App.jsx, StepCounter).
+// Returns the weekday name (Sun..Sat) for "today + offsetDays".
+function getWeekdayName(offsetDays = 0) {
+  const d = new Date();
+  d.setHours(d.getHours() - 5);
+  d.setDate(d.getDate() + offsetDays);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
+}
 
 function WeeklyStats() {
   const [selectedDay, setSelectedDay] = useState(null);
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const weeklyData = JSON.parse(localStorage.getItem("weeklyData")) || {};
+
+  // `weeklyData` in localStorage only gets written when a day rolls over
+  // (see App.jsx), so today's entry is never in there while the day is
+  // still in progress — that's why this card kept showing stale/old numbers
+  // for today. Fix: re-read today's live keys (same ones StepCounter /
+  // WaterTracker / WorkoutLog write to) and merge them in just for display.
+  // The interval + storage listener keep it live without needing a refresh.
+  const [, forceRefresh] = useState(0);
+  useEffect(() => {
+    const sync = () => forceRefresh((n) => n + 1);
+    window.addEventListener("storage", sync);
+    const id = setInterval(sync, 5000);
+    return () => {
+      window.removeEventListener("storage", sync);
+      clearInterval(id);
+    };
+  }, []);
+
+  const storedWeeklyData = JSON.parse(localStorage.getItem("weeklyData")) || {};
+  const todayName = getWeekdayName();
+  const liveToday = {
+    steps: Number(localStorage.getItem("steps")) || 0,
+    water: Number(localStorage.getItem("water")) || 0,
+    calories: Number(localStorage.getItem("stepCalories")) || 0,
+    kms: Number(localStorage.getItem("kms")) || 0,
+  };
+  const weeklyData = { ...storedWeeklyData, [todayName]: liveToday };
 
   const stepGoal = Number(localStorage.getItem("goal_steps")) || 10000;
   const waterGoal = Number(localStorage.getItem("goal_water")) || 8;
@@ -25,7 +60,13 @@ function WeeklyStats() {
   );
   const totalKms = days.reduce((sum, d) => sum + (weeklyData[d]?.kms || 0), 0);
 
-  const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+  // Same -5h boundary for "which bar is today", consistent with the rest of the app.
+  const todayDow = (() => {
+    const d = new Date();
+    d.setHours(d.getHours() - 5);
+    return d.getDay();
+  })();
+  const todayIndex = todayDow === 0 ? 6 : todayDow - 1;
 
   return (
     <>

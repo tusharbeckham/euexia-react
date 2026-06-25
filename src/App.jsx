@@ -3,6 +3,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import BottomNav from "./components/BottomNav";
+import StreakCelebration from "./components/StreakCelebration";
 import { Activity } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { scheduleWaterReminder } from "./services/notifications";
@@ -50,6 +51,16 @@ function getYesterdayISO() {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+// Same -5h day boundary, but returns the weekday name (Sun..Sat) instead of
+// an ISO date. Used to file a finished day's totals under the *correct*
+// weekday key in weeklyData.
+function getWeekdayName(offsetDays = 0) {
+  const d = new Date();
+  d.setHours(d.getHours() - 5);
+  d.setDate(d.getDate() + offsetDays);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
 }
 
 function App() {
@@ -152,9 +163,11 @@ function App() {
       const stepGoal = Number(localStorage.getItem("goal_steps")) || 10000;
       const goalCompleted = yesterdaySteps >= stepGoal;
 
-      const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
-        new Date().getDay()
-      ];
+      // FIX: this is yesterday's data finishing up, so it must be filed
+      // under *yesterday's* weekday — not today's. The old code used
+      // `new Date().getDay()` (today), which silently shifted every day's
+      // numbers onto the wrong bar in Weekly Summary.
+      const dayName = getWeekdayName(-1);
       const weeklyData = JSON.parse(localStorage.getItem("weeklyData")) || {};
       weeklyData[dayName] = {
         steps: yesterdaySteps,
@@ -179,6 +192,13 @@ function App() {
       if (lastStreakDate === yesterdayDate) {
         if (goalCompleted) {
           streak = streak + 1;
+          // Queue the fire animation for the NEXT render — StreakCelebration
+          // reads + immediately clears this key, so it only ever fires once
+          // per increment, no matter how many times the app is reopened today.
+          localStorage.setItem(
+            "streakCelebration",
+            JSON.stringify({ streak, date: todayDate }),
+          );
         } else {
           streak = 0;
         }
@@ -196,6 +216,7 @@ function App() {
 
   return (
     <div className="main-wrapper">
+      <StreakCelebration />
       {!isConnected ? (
         // Login / Connect Screen
         <div className="animate" style={{
@@ -210,26 +231,30 @@ function App() {
             textAlign: "center"
           }}
         >
-          <div style={{
-            background: 'var(--surface2)',
-            padding: '24px',
-            borderRadius: '50%',
-            marginBottom: '24px',
-            boxShadow: '0 8px 32px rgba(48, 209, 88, 0.2)',
-            border: '1px solid var(--nav-border)'
-          }}>
-            <Activity size={48} color="#30d158" />
-          </div>
-
           <h1 style={{ fontSize: "2.4rem", fontWeight: "800", marginBottom: "12px", letterSpacing: "-0.5px" }}>
             Welcome to <span style={{ color: "#30d158" }}>Euexia</span>
           </h1>
-          
-          <p style={{ color: "var(--muted)", fontSize: "1.05rem", lineHeight: "1.6", marginBottom: "40px", maxWidth: "300px" }}>
+
+          <p style={{
+              color: "var(--text2)",
+              opacity: 0.78,
+              fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif",
+              fontWeight: "500",
+              fontSize: "1.02rem",
+              lineHeight: "1.6",
+              letterSpacing: "-0.1px",
+              marginBottom: "40px",
+              maxWidth: "300px"
+            }}>
             Your personal health companion. Start tracking your daily steps, water intake, and workouts.
           </p>
 
-          <button className="primary-btn" onClick={handleConnect} style={{ maxWidth: '300px' }}>
+          <button className="primary-btn" onClick={handleConnect} style={{
+              maxWidth: '300px',
+              fontSize: '1.05rem',
+              letterSpacing: '0.2px',
+              boxShadow: '0 6px 20px rgba(48, 209, 88, 0.35), inset 0 1px 0 rgba(255,255,255,0.18)'
+            }}>
             <Activity size={20} /> Start Tracking
           </button>
         </div>
