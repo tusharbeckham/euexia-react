@@ -6,7 +6,6 @@ import BottomNav from "./components/BottomNav";
 import StreakCelebration from "./components/StreakCelebration";
 import Auth from "./pages/Auth";
 import { Capacitor } from "@capacitor/core";
-import { scheduleWaterReminder } from "./services/notifications";
 import { supabase } from "./services/supabase";
 import { syncToSupabase, loadFromSupabase } from "./services/syncService";
 import {
@@ -77,6 +76,22 @@ function App() {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Push notifications
+  useEffect(() => {
+    async function setupNotifications() {
+      if (!isNative) return;
+      try {
+        const { requestNotificationPermission, scheduleWaterReminder } =
+          await import("./services/notifications");
+        const granted = await requestNotificationPermission();
+        if (granted) await scheduleWaterReminder();
+      } catch (e) {
+        console.log("Notifications not supported:", e);
+      }
+    }
+    if (user) setupNotifications();
+  }, [user]);
+
   // Theme + Google Fit connection
   useEffect(() => {
     const theme = localStorage.getItem("theme") || "dark";
@@ -128,18 +143,6 @@ function App() {
       alert("Bhai, Google Fit connect nahi ho paya. Console check kar!");
     }
   };
-
-  // Notifications
-  useEffect(() => {
-    async function setupNotifications() {
-      const notificationsEnabled = localStorage.getItem("notifications") === "true";
-      if (notificationsEnabled) {
-        try { await scheduleWaterReminder(); }
-        catch (e) { console.log("Notifications not supported:", e); }
-      }
-    }
-    setupNotifications();
-  }, []);
 
   // Streak & day rollover
   useEffect(() => {
@@ -194,8 +197,6 @@ function App() {
       localStorage.setItem("streak", String(streak));
       localStorage.setItem("lastStreakDate", todayDate);
       localStorage.setItem("savedDate", todayDate);
-
-      // Sync after day rollover
       syncToSupabase();
     }
   }, []);
