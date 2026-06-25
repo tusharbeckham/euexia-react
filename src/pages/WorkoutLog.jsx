@@ -1,44 +1,49 @@
 import { useState } from "react";
 import { Dumbbell, Flame, CheckCircle, Clock, ChevronDown } from "lucide-react";
 
+// `stepBased: true` marks activities where carrying your phone would make
+// StepCounter's sensor pick up the same motion as actual steps — meaning its
+// calories would double-count with this workout's MET-based calories.
+// For everything else (cycling, swimming, weights, sports, yoga, etc.) the
+// phone sensor isn't realistically capturing the activity, so no conflict.
 const exerciseList = [
-  { name: "Running (8 km/h)", met: 8.3, category: "Cardio" },
-  { name: "Running (12 km/h)", met: 11.5, category: "Cardio" },
-  { name: "Walking (5 km/h)", met: 3.5, category: "Cardio" },
-  { name: "Brisk Walk", met: 4.5, category: "Cardio" },
-  { name: "Cycling (moderate)", met: 7.5, category: "Cardio" },
-  { name: "Cycling (fast)", met: 10.0, category: "Cardio" },
-  { name: "Jump Rope", met: 12.3, category: "Cardio" },
-  { name: "Swimming", met: 8.0, category: "Cardio" },
-  { name: "Rowing", met: 7.0, category: "Cardio" },
-  { name: "Stair Climbing", met: 8.0, category: "Cardio" },
-  { name: "Elliptical", met: 6.0, category: "Cardio" },
-  { name: "Treadmill", met: 8.0, category: "Cardio" },
-  { name: "Weight Training", met: 5.0, category: "Strength" },
-  { name: "Powerlifting", met: 6.0, category: "Strength" },
-  { name: "Bodyweight Training", met: 4.5, category: "Strength" },
-  { name: "Kettlebell", met: 8.0, category: "Strength" },
-  { name: "CrossFit", met: 10.0, category: "Strength" },
-  { name: "HIIT", met: 10.0, category: "HIIT" },
-  { name: "Tabata", met: 11.0, category: "HIIT" },
-  { name: "Circuit Training", met: 8.0, category: "HIIT" },
-  { name: "Football", met: 8.0, category: "Sports" },
-  { name: "Basketball", met: 8.0, category: "Sports" },
-  { name: "Cricket", met: 5.0, category: "Sports" },
-  { name: "Badminton", met: 7.0, category: "Sports" },
-  { name: "Tennis", met: 8.0, category: "Sports" },
-  { name: "Volleyball", met: 6.0, category: "Sports" },
-  { name: "Table Tennis", met: 4.5, category: "Sports" },
-  { name: "Yoga", met: 3.0, category: "Mind-Body" },
-  { name: "Pilates", met: 3.5, category: "Mind-Body" },
-  { name: "Stretching", met: 2.5, category: "Mind-Body" },
-  { name: "Meditation", met: 1.5, category: "Mind-Body" },
-  { name: "Dancing", met: 5.5, category: "Other" },
-  { name: "Martial Arts", met: 10.0, category: "Other" },
-  { name: "Boxing", met: 9.0, category: "Other" },
-  { name: "Rock Climbing", met: 8.0, category: "Other" },
-  { name: "Hiking", met: 6.0, category: "Other" },
-  { name: "Zumba", met: 6.5, category: "Other" },
+  { name: "Running (8 km/h)", met: 8.3, category: "Cardio", stepBased: true },
+  { name: "Running (12 km/h)", met: 11.5, category: "Cardio", stepBased: true },
+  { name: "Walking (5 km/h)", met: 3.5, category: "Cardio", stepBased: true },
+  { name: "Brisk Walk", met: 4.5, category: "Cardio", stepBased: true },
+  { name: "Cycling (moderate)", met: 7.5, category: "Cardio", stepBased: false },
+  { name: "Cycling (fast)", met: 10.0, category: "Cardio", stepBased: false },
+  { name: "Jump Rope", met: 12.3, category: "Cardio", stepBased: true },
+  { name: "Swimming", met: 8.0, category: "Cardio", stepBased: false },
+  { name: "Rowing", met: 7.0, category: "Cardio", stepBased: false },
+  { name: "Stair Climbing", met: 8.0, category: "Cardio", stepBased: true },
+  { name: "Elliptical", met: 6.0, category: "Cardio", stepBased: false },
+  { name: "Treadmill", met: 8.0, category: "Cardio", stepBased: true },
+  { name: "Weight Training", met: 5.0, category: "Strength", stepBased: false },
+  { name: "Powerlifting", met: 6.0, category: "Strength", stepBased: false },
+  { name: "Bodyweight Training", met: 4.5, category: "Strength", stepBased: false },
+  { name: "Kettlebell", met: 8.0, category: "Strength", stepBased: false },
+  { name: "CrossFit", met: 10.0, category: "Strength", stepBased: false },
+  { name: "HIIT", met: 10.0, category: "HIIT", stepBased: false },
+  { name: "Tabata", met: 11.0, category: "HIIT", stepBased: false },
+  { name: "Circuit Training", met: 8.0, category: "HIIT", stepBased: false },
+  { name: "Football", met: 8.0, category: "Sports", stepBased: false },
+  { name: "Basketball", met: 8.0, category: "Sports", stepBased: false },
+  { name: "Cricket", met: 5.0, category: "Sports", stepBased: false },
+  { name: "Badminton", met: 7.0, category: "Sports", stepBased: false },
+  { name: "Tennis", met: 8.0, category: "Sports", stepBased: false },
+  { name: "Volleyball", met: 6.0, category: "Sports", stepBased: false },
+  { name: "Table Tennis", met: 4.5, category: "Sports", stepBased: false },
+  { name: "Yoga", met: 3.0, category: "Mind-Body", stepBased: false },
+  { name: "Pilates", met: 3.5, category: "Mind-Body", stepBased: false },
+  { name: "Stretching", met: 2.5, category: "Mind-Body", stepBased: false },
+  { name: "Meditation", met: 1.5, category: "Mind-Body", stepBased: false },
+  { name: "Dancing", met: 5.5, category: "Other", stepBased: false },
+  { name: "Martial Arts", met: 10.0, category: "Other", stepBased: false },
+  { name: "Boxing", met: 9.0, category: "Other", stepBased: false },
+  { name: "Rock Climbing", met: 8.0, category: "Other", stepBased: false },
+  { name: "Hiking", met: 6.0, category: "Other", stepBased: true },
+  { name: "Zumba", met: 6.5, category: "Other", stepBased: false },
 ];
 
 function getCalories(exerciseName, durationMins) {
@@ -60,6 +65,12 @@ function WorkoutLog() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
 
+  // Whether the phone was carried during this workout. Defaults to the
+  // activity's stepBased flag when an exercise is picked (sensible default,
+  // zero extra taps for the common case), but the toggle below lets the
+  // user correct it — e.g. they went for a run but left the phone at home.
+  const [hadPhone, setHadPhone] = useState(false);
+
   const calGoal = Number(localStorage.getItem("goal_calories")) || 500;
   const isGoalDone = totalCal >= calGoal;
   const percent = Math.min((totalCal / calGoal) * 100, 100);
@@ -69,6 +80,12 @@ function WorkoutLog() {
     selectedCategory === "All"
       ? exerciseList
       : exerciseList.filter((e) => e.category === selectedCategory);
+
+  const selectedExercise = exerciseList.find((e) => e.name === name);
+  const isStepBased = selectedExercise?.stepBased || false;
+  // Only actually skip the total if it's a step-type activity AND the phone
+  // was along for it — that's the only scenario where steps already counted it.
+  const willExcludeFromTotal = isStepBased && hadPhone;
 
   const previewCal =
     name && duration ? getCalories(name, Number(duration)) : null;
@@ -83,17 +100,21 @@ function WorkoutLog() {
       return;
     }
     const calories = getCalories(name, Number(duration));
+    const excludedFromTotal = isStepBased && hadPhone;
     const newWorkouts = [
       ...workouts,
-      { name, duration: Number(duration), calories },
+      { name, duration: Number(duration), calories, excludedFromTotal },
     ];
-    const newTotal = totalCal + calories;
+    // Skip adding to the running total when steps already covered this
+    // session — the workout still gets logged below either way.
+    const newTotal = excludedFromTotal ? totalCal : totalCal + calories;
     setWorkouts(newWorkouts);
     setTotalCal(newTotal);
     localStorage.setItem("workouts", JSON.stringify(newWorkouts));
     localStorage.setItem("totalCalories", newTotal);
     setName("");
     setDuration("");
+    setHadPhone(false);
   }
 
   return (
@@ -232,6 +253,9 @@ function WorkoutLog() {
                   key={ex.name}
                   onClick={() => {
                     setName(ex.name);
+                    // Sensible default — checked for step-type activities,
+                    // unchecked otherwise. User can still flip it below.
+                    setHadPhone(ex.stepBased);
                     setShowDropdown(false);
                   }}
                   style={{
@@ -280,6 +304,68 @@ function WorkoutLog() {
         />
       </div>
 
+      {/* Phone-carried toggle — only matters for step-type activities,
+          since that's the only case where double-counting can happen. */}
+      {isStepBased && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "var(--surface2)",
+            borderRadius: "14px",
+            padding: "12px 16px",
+            marginBottom: "10px",
+            border: "1px solid var(--border)",
+            gap: "12px",
+          }}
+        >
+          <div>
+            <span style={{ color: "var(--text)", fontSize: "0.9rem" }}>
+              Had your phone with you?
+            </span>
+            <p
+              style={{
+                color: "var(--muted)",
+                fontSize: "0.72rem",
+                marginTop: "2px",
+              }}
+            >
+              {hadPhone
+                ? "Steps already counted this — won't add to total"
+                : "Phone wasn't tracking — will add to total"}
+            </p>
+          </div>
+          <div
+            onClick={() => setHadPhone(!hadPhone)}
+            style={{
+              width: "52px",
+              height: "30px",
+              borderRadius: "999px",
+              background: hadPhone ? "#ff9f0a" : "var(--input-border)",
+              cursor: "pointer",
+              position: "relative",
+              transition: "background 0.3s ease",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: "3px",
+                left: hadPhone ? "26px" : "4px",
+                width: "24px",
+                height: "24px",
+                borderRadius: "50%",
+                background: "#ffffff",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                transition: "left 0.3s ease",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {previewCal && (
         <p
           style={{
@@ -291,6 +377,7 @@ function WorkoutLog() {
           }}
         >
           ≈ {previewCal} calories will be burned
+          {willExcludeFromTotal ? " (already in your step calories)" : ""}
         </p>
       )}
       <button
@@ -327,6 +414,7 @@ function WorkoutLog() {
                 }}
               >
                 {w.duration} mins
+                {w.excludedFromTotal ? " · counted via steps" : ""}
               </p>
             </div>
             <span style={{ color: "#ff9f0a", fontWeight: "700" }}>
