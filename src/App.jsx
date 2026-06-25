@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import { Capacitor } from "@capacitor/core";
 import { scheduleWaterReminder } from "./services/notifications";
 import { supabase } from "./services/supabase";
+import { syncToSupabase, loadFromSupabase } from "./services/syncService";
 import {
   fetchTodayStepCount,
   persistStepMetrics,
@@ -53,25 +54,33 @@ function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Auth state listener
+  // Auth state + load data on login
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) await loadFromSupabase();
       setAuthLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) await loadFromSupabase();
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  // Sync to Supabase every 30 seconds
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(syncToSupabase, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   // Theme + Google Fit connection
   useEffect(() => {
     const theme = localStorage.getItem("theme") || "dark";
     document.body.className = `theme-${theme}`;
-
     if (!isNative) return;
 
     const checkGoogleConnection = async () => {
@@ -100,6 +109,7 @@ function App() {
           const count = await fetchTodayStepCount();
           persistStepMetrics(count);
           broadcastStepsSynced(count);
+          await syncToSupabase();
         } catch (e) {
           console.error("Steps refresh on resume:", e);
         }
@@ -131,7 +141,7 @@ function App() {
     setupNotifications();
   }, []);
 
-  // Streak & day rollover logic
+  // Streak & day rollover
   useEffect(() => {
     const savedDate = localStorage.getItem("savedDate");
     const todayDate = getTodayISO();
@@ -184,13 +194,13 @@ function App() {
       localStorage.setItem("streak", String(streak));
       localStorage.setItem("lastStreakDate", todayDate);
       localStorage.setItem("savedDate", todayDate);
+
+      // Sync after day rollover
+      syncToSupabase();
     }
   }, []);
 
-  // Show nothing while checking auth
   if (authLoading) return null;
-
-  // Show auth screen if not logged in
   if (!user) return <Auth />;
 
   return (
