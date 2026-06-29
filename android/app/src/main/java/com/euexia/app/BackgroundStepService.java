@@ -161,7 +161,7 @@ public class BackgroundStepService extends Service implements SensorEventListene
                 "Step Tracking",
                 NotificationManager.IMPORTANCE_LOW  // silent – no sound or vibration
             );
-            channel.setDescription("Keeps Euexia counting your steps in the background");
+            channel.setDescription("Tracking your steps in the background");
             channel.setShowBadge(false);
 
             NotificationManager nm = (NotificationManager)
@@ -180,13 +180,20 @@ public class BackgroundStepService extends Service implements SensorEventListene
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Euexia — Step Tracker")
-            .setContentText(currentSteps + " steps counted today")
-            .setSmallIcon(android.R.drawable.ic_menu_my_calendar)
-            .setOngoing(true)        // Cannot be dismissed by the user
-            .setOnlyAlertOnce(true)  // Suppress repeated alerts on updates
-            .setContentIntent(pendingIntent)
-            .build();
+        String stepText = String.format(
+    java.util.Locale.getDefault(),
+    "%,d steps today",
+    currentSteps
+);
+
+return new NotificationCompat.Builder(this, CHANNEL_ID)
+    .setContentTitle("Euexia")
+    .setContentText(stepText)
+    .setSmallIcon(R.drawable.ic_stat_steps)
+    .setOngoing(true)
+    .setOnlyAlertOnce(true)
+    .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+    .setContentIntent(pendingIntent)
+    .build();
     }
 }
