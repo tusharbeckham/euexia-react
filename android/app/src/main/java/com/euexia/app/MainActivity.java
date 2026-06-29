@@ -8,6 +8,7 @@ import android.os.Bundle;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
+import ee.forgr.capacitor.social.login.SocialLoginPlugin;
 
 public class MainActivity extends BridgeActivity {
 
@@ -17,6 +18,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(StepSensorPlugin.class);
         registerPlugin(AuthBridgePlugin.class);
+        registerPlugin(SocialLoginPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Only start service if user is already logged in (returning user)

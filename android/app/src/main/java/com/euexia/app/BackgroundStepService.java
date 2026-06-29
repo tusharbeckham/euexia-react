@@ -98,6 +98,14 @@ public class BackgroundStepService extends Service implements SensorEventListene
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && intent.hasExtra("set_steps")) {
+            todaySteps = intent.getIntExtra("set_steps", todaySteps);
+            prefs.edit().putInt(KEY_STEPS, todaySteps).apply();
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) {
+                nm.notify(NOTIF_ID, buildNotification(todaySteps));
+            }
+        }
         return START_STICKY;
     }
 

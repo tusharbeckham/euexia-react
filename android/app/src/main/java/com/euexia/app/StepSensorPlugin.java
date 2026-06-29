@@ -32,5 +32,18 @@ public class StepSensorPlugin extends Plugin {
         ret.put("value", steps);
         call.resolve(ret);
     }
+
+    @PluginMethod
+    public void setSteps(PluginCall call) {
+        int steps = call.getInt("value", 0);
+        android.content.Intent intent = new android.content.Intent(getContext(), BackgroundStepService.class);
+        intent.putExtra("set_steps", steps);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            getContext().startForegroundService(intent);
+        } else {
+            getContext().startService(intent);
+        }
+        call.resolve();
+    }
 }
 
