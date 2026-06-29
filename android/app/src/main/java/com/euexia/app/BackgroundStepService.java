@@ -26,6 +26,7 @@ import androidx.core.app.NotificationCompat;
  *   2. Persists the rolling count in SharedPreferences ("EuexiaSteps" / "steps")
  *      so StepSensorPlugin can read it from the JS bridge thread without any sensor race.
  *   3. Shows a required foreground notification (Android 8+).
+ *   4. Filters out false steps from phone shakes/swings via time-based debounce + burst guard.
  */
 public class BackgroundStepService extends Service implements SensorEventListener {
 
@@ -41,10 +42,17 @@ public class BackgroundStepService extends Service implements SensorEventListene
     private SensorManager     sensorManager;
     private Sensor            stepSensor;
     private SharedPreferences prefs;
-    
+
     private int todaySteps = 0;
     private int lastSensorValue = -1;
     private String savedDate = "";
+
+    // ── Smart step filter fields ──────────────────────────────────────────────
+    private long lastStepTime     = 0;
+    private int  burstCount       = 0;
+    private long burstWindowStart = 0;
+    private static final long MIN_STEP_MS = 250; // ignore steps faster than 250ms apart
+    private static final int  BURST_LIMIT = 5;   // max steps allowed per 2-second window
 
     // Helper to get today's date string (logical day starts at 5:00 AM)
     private String getTodayString() {
@@ -60,7 +68,7 @@ public class BackgroundStepService extends Service implements SensorEventListene
         super.onCreate();
 
         prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        
+
         todaySteps = prefs.getInt(KEY_STEPS, 0);
         lastSensorValue = prefs.getInt("lastSensorValue", -1);
         savedDate = prefs.getString("stepsDate", "");
@@ -111,39 +119,61 @@ public class BackgroundStepService extends Service implements SensorEventListene
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        if (event.sensor.getType() == Sensor.TYPE_STEP_COUNTER) {
-            int currentSensorValue = (int) event.values[0];
+        if (event.sensor.getType() != Sensor.TYPE_STEP_COUNTER) return;
 
-            // Initialize or handle device reboot (where sensor value resets to 0)
-            if (lastSensorValue == -1 || currentSensorValue < lastSensorValue) {
-                lastSensorValue = currentSensorValue;
-            }
+        int currentSensorValue = (int) event.values[0];
 
-            int delta = currentSensorValue - lastSensorValue;
-
-            // Handle midnight reset while service is running
-            String todayDate = getTodayString();
-            if (!savedDate.equals(todayDate)) {
-                todaySteps = 0;
-                savedDate = todayDate;
-            }
-
-            todaySteps += delta;
+        // Initialize or handle device reboot (where sensor value resets to 0)
+        if (lastSensorValue == -1 || currentSensorValue < lastSensorValue) {
             lastSensorValue = currentSensorValue;
+            return;
+        }
 
-            // Commit immediately
-            prefs.edit()
-                 .putInt(KEY_STEPS, todaySteps)
-                 .putInt("lastSensorValue", lastSensorValue)
-                 .putString("stepsDate", savedDate)
-                 .apply();
+        int rawDelta = currentSensorValue - lastSensorValue;
+        lastSensorValue = currentSensorValue;
 
-            // Update the persistent notification with the latest count
-            NotificationManager nm =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            if (nm != null) {
-                nm.notify(NOTIF_ID, buildNotification(todaySteps));
+        // Handle midnight reset while service is running
+        String todayDate = getTodayString();
+        if (!savedDate.equals(todayDate)) {
+            todaySteps = 0;
+            savedDate = todayDate;
+        }
+
+        // ── Smart filter: time-based debounce + burst guard ───────────────────
+        long now = System.currentTimeMillis();
+        int filteredDelta = 0;
+
+        for (int i = 0; i < rawDelta; i++) {
+            // Too fast = swing/shake, skip
+            if (now - lastStepTime < MIN_STEP_MS) continue;
+
+            // Burst guard: >BURST_LIMIT steps in 2 sec = shaking, skip
+            if (now - burstWindowStart < 2000) {
+                burstCount++;
+                if (burstCount > BURST_LIMIT) continue;
+            } else {
+                burstWindowStart = now;
+                burstCount = 1;
             }
+
+            filteredDelta++;
+            lastStepTime = now;
+        }
+
+        todaySteps += filteredDelta;
+
+        // Commit immediately
+        prefs.edit()
+             .putInt(KEY_STEPS, todaySteps)
+             .putInt("lastSensorValue", lastSensorValue)
+             .putString("stepsDate", savedDate)
+             .apply();
+
+        // Update the persistent notification with the latest count
+        NotificationManager nm =
+            (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm != null) {
+            nm.notify(NOTIF_ID, buildNotification(todaySteps));
         }
     }
 
@@ -181,19 +211,19 @@ public class BackgroundStepService extends Service implements SensorEventListene
         );
 
         String stepText = String.format(
-    java.util.Locale.getDefault(),
-    "%,d steps today",
-    currentSteps
-);
+            java.util.Locale.getDefault(),
+            "%,d steps today",
+            currentSteps
+        );
 
-return new NotificationCompat.Builder(this, CHANNEL_ID)
-    .setContentTitle("Euexia")
-    .setContentText(stepText)
-    .setSmallIcon(R.drawable.ic_stat_steps)
-    .setOngoing(true)
-    .setOnlyAlertOnce(true)
-    .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-    .setContentIntent(pendingIntent)
-    .build();
+        return new NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Euexia")
+            .setContentText(stepText)
+            .setSmallIcon(R.drawable.ic_stat_steps)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .setContentIntent(pendingIntent)
+            .build();
     }
 }
