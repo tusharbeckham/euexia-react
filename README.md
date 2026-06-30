@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="resources/icon.jpeg" width="120" alt="Euexia" />
+<img src="src/assets/hero.png" width="120" alt="Euexia" />
 
 <br/>
 <br/>
