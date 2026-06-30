@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "upload-update": "npm run build && npx @capgo/cli upload"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",
@@ -16,6 +17,7 @@
     "@capacitor/core": "^8.1.0",
     "@capacitor/local-notifications": "^8.1.0",
     "@capgo/capacitor-social-login": "^8.3.30",
+    "@capgo/capacitor-updater": "^8.50.1",
     "@react-spring/web": "^10.0.3",
     "@supabase/supabase-js": "^2.108.2",
     "capacitor-google-fit": "npm:@perfood/capacitor-google-fit@latest",

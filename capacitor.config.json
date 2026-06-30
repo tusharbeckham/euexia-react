@@ -1,5 +1,11 @@
 {
   "appId": "com.euexia.app",
   "appName": "Euexia",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": true,
+      "appId": "5cd22829-1ad5-4a6b-99f7-e22281ad2dc8"
+    }
+  }
 }

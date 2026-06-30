@@ -11,5 +11,8 @@ project(':capacitor-local-notifications').projectDir = new File('../node_modules
 include ':capgo-capacitor-social-login'
 project(':capgo-capacitor-social-login').projectDir = new File('../node_modules/@capgo/capacitor-social-login/android')
 
+include ':capgo-capacitor-updater'
+project(':capgo-capacitor-updater').projectDir = new File('../node_modules/@capgo/capacitor-updater/android')
+
 include ':capacitor-google-fit'
 project(':capacitor-google-fit').projectDir = new File('../node_modules/capacitor-google-fit/android')

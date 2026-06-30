@@ -47,12 +47,9 @@ public class BackgroundStepService extends Service implements SensorEventListene
     private int lastSensorValue = -1;
     private String savedDate = "";
 
-    // ── Smart step filter fields ──────────────────────────────────────────────
-    private long lastStepTime     = 0;
-    private int  burstCount       = 0;
-    private long burstWindowStart = 0;
-    private static final long MIN_STEP_MS = 250; // ignore steps faster than 250ms apart
-    private static final int  BURST_LIMIT = 5;   // max steps allowed per 2-second window
+    // ── Sanity filter ─────────────────────────────────────────────────────────
+    // TYPE_STEP_COUNTER is hardware-validated — it only increments for real
+    // steps. No software debounce needed.
 
     // Helper to get today's date string (logical day starts at 5:00 AM)
     private String getTodayString() {
@@ -91,7 +88,7 @@ public class BackgroundStepService extends Service implements SensorEventListene
         if (sensorManager != null) {
             stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
             if (stepSensor != null) {
-                sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_UI);
+                sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_FASTEST);
             }
         }
     }
@@ -134,6 +131,7 @@ public class BackgroundStepService extends Service implements SensorEventListene
         // Initialize or handle device reboot (where sensor value resets to 0)
         if (lastSensorValue == -1 || currentSensorValue < lastSensorValue) {
             lastSensorValue = currentSensorValue;
+            prefs.edit().putInt("lastSensorValue", lastSensorValue).apply();
             return;
         }
 
@@ -147,28 +145,8 @@ public class BackgroundStepService extends Service implements SensorEventListene
             savedDate = todayDate;
         }
 
-        // ── Smart filter: time-based debounce + burst guard ───────────────────
-        long now = System.currentTimeMillis();
-        int filteredDelta = 0;
-
-        for (int i = 0; i < rawDelta; i++) {
-            // Too fast = swing/shake, skip
-            if (now - lastStepTime < MIN_STEP_MS) continue;
-
-            // Burst guard: >BURST_LIMIT steps in 2 sec = shaking, skip
-            if (now - burstWindowStart < 2000) {
-                burstCount++;
-                if (burstCount > BURST_LIMIT) continue;
-            } else {
-                burstWindowStart = now;
-                burstCount = 1;
-            }
-
-            filteredDelta++;
-            lastStepTime = now;
-        }
-
-        todaySteps += filteredDelta;
+        // Trust the hardware — TYPE_STEP_COUNTER only fires for real steps
+        todaySteps += rawDelta;
 
         // Commit immediately
         prefs.edit()
