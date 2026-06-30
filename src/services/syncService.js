@@ -1,4 +1,8 @@
 import { supabase } from "./supabase";
+import { Capacitor, registerPlugin } from "@capacitor/core";
+
+const isNative = Capacitor.isNativePlatform();
+const StepSensor = isNative ? registerPlugin("StepSensor") : null;
 
 const today = () => {
   const d = new Date();
@@ -10,10 +14,28 @@ export async function syncToSupabase() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
+  // On native, always read the live step count from the hardware service
+  // (SharedPreferences) — never trust localStorage for steps, it can be stale.
+  let liveSteps = Number(localStorage.getItem("steps")) || 0;
+  if (isNative && StepSensor) {
+    try {
+      const result = await StepSensor.getSteps();
+      if (result && result.value !== undefined) {
+        liveSteps = result.value;
+        // Also update localStorage so the rest of the app stays in sync
+        localStorage.setItem("steps", String(liveSteps));
+        localStorage.setItem("kms", (liveSteps * 0.000762).toFixed(2));
+        localStorage.setItem("stepCalories", String(Math.round(liveSteps * 0.04)));
+      }
+    } catch (e) {
+      console.error("syncToSupabase: failed to read native steps:", e);
+    }
+  }
+
   const data = {
     user_id: user.id,
     log_date: today(),
-    steps: Number(localStorage.getItem("steps")) || 0,
+    steps: liveSteps,
     water: Number(localStorage.getItem("water")) || 0,
     calories: Number(localStorage.getItem("stepCalories")) || 0,
     kms: Number(localStorage.getItem("kms")) || 0,
@@ -90,23 +112,43 @@ export async function loadFromSupabase() {
     localStorage.setItem("weeklyData", JSON.stringify(weeklyData));
 
     if (todayLog) {
-      if (todayLog.steps) localStorage.setItem("steps", String(todayLog.steps));
       if (todayLog.water) localStorage.setItem("water", String(todayLog.water));
-      if (todayLog.calories) localStorage.setItem("stepCalories", String(todayLog.calories));
-      if (todayLog.kms) localStorage.setItem("kms", String(todayLog.kms));
       if (todayLog.streak) localStorage.setItem("streak", String(todayLog.streak));
 
-      // Re-initialize the native background counter so it doesn't zero out today's count
-      try {
-        const { Capacitor, registerPlugin } = await import("@capacitor/core");
-        if (Capacitor.isNativePlatform()) {
-          const StepSensor = registerPlugin("StepSensor");
-          if (StepSensor && StepSensor.setSteps) {
-            await StepSensor.setSteps({ value: todayLog.steps || 0 });
+      // ── Steps: cloud value must NEVER be allowed to roll the live native
+      //    counter backwards. loadFromSupabase() runs on every auth event
+      //    (sign-in, periodic token refresh, app resume) — not just once.
+      //    A stale or zero `daily_logs.steps` row (e.g. from before the
+      //    sensor was working, or simply because the last upload predates
+      //    the steps you've taken since) must not stomp the real, currently
+      //    higher native count. The only legitimate use case for restoring
+      //    from the cloud is a reinstall / fresh login on a new device,
+      //    where the native counter genuinely has less data than the cloud.
+      //    So: only "catch up" the native counter when the cloud value is
+      //    strictly greater than what the device currently has — never set
+      //    it to an equal-or-lower value, and never set it to 0.
+      if (todayLog.steps) {
+        try {
+          if (isNative && StepSensor) {
+            const native = await StepSensor.getSteps();
+            const nativeSteps = native?.value ?? 0;
+
+            if (todayLog.steps > nativeSteps) {
+              await StepSensor.setSteps({ value: todayLog.steps });
+              localStorage.setItem("steps", String(todayLog.steps));
+              localStorage.setItem("kms", (todayLog.steps * 0.000762).toFixed(2));
+              localStorage.setItem("stepCalories", String(Math.round(todayLog.steps * 0.04)));
+            }
+            // else: native count is already >= cloud — leave it alone.
+          } else {
+            // Web fallback: safe to trust cloud value directly.
+            localStorage.setItem("steps", String(todayLog.steps));
+            localStorage.setItem("kms", (todayLog.steps * 0.000762).toFixed(2));
+            localStorage.setItem("stepCalories", String(Math.round(todayLog.steps * 0.04)));
           }
+        } catch (err) {
+          console.error("Failed to sync step count back to native:", err);
         }
-      } catch (err) {
-        console.error("Failed to sync step count back to native:", err);
       }
     }
   }

@@ -9,11 +9,6 @@ import SplashScreen from "./components/SplashScreen";
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "./services/supabase";
 import { syncToSupabase, loadFromSupabase } from "./services/syncService";
-import {
-  fetchTodayStepCount,
-  persistStepMetrics,
-  broadcastStepsSynced,
-} from "./services/googleFitSteps";
 import { checkNativeAuth } from "./utils/authBridge";
 import { onLoginSuccess } from "./utils/authBridge";
 import "./App.css";
@@ -63,7 +58,6 @@ function getWeekdayName(offsetDays = 0) {
 
 function App() {
   const [activePage, setActivePage] = useState("home");
-  const [isConnected, setIsConnected] = useState(() => localStorage.getItem("googleFitConnected") === "true");
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [splashDone, setSplashDone] = useState(false);
@@ -78,7 +72,10 @@ function App() {
       await checkNativeAuth().catch(() => {});
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-      if (session?.user) await loadFromSupabase();
+      if (session?.user) {
+        await loadFromSupabase();
+        await onLoginSuccess(); // Ensure native layer knows we are logged in to start the step service
+      }
       setAuthLoading(false);
       if (CapacitorUpdater) {
         CapacitorUpdater.notifyAppReady();
@@ -104,15 +101,31 @@ function App() {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Push notifications
+  // Push notifications — schedule only once. Re-scheduling on every launch
+  // resets the clock-time slots (id 2 @ 6PM, id 3 @ 8PM) via Capacitor's
+  // LocalNotifications.schedule(), which can push "today's" reminder to
+  // tomorrow if the app is relaunched after that hour has already passed.
   useEffect(() => {
     async function setupNotifications() {
       if (!isNative) return;
       try {
         const { requestNotificationPermission, scheduleWaterReminder } =
           await import("./services/notifications");
+
         const granted = await requestNotificationPermission();
-        if (granted) await scheduleWaterReminder();
+        if (!granted) {
+          localStorage.removeItem("notificationsScheduledAt");
+          return;
+        }
+
+        const lastScheduled = localStorage.getItem("notificationsScheduledAt");
+
+        // Already scheduled — Capacitor's "every: day"
+        // schedules persist on their own, no need to touch them again.
+        if (lastScheduled) return;
+
+        await scheduleWaterReminder();
+        localStorage.setItem("notificationsScheduledAt", new Date().toISOString().slice(0, 10));
       } catch (e) {
         console.log("Notifications not supported:", e);
       }
@@ -120,66 +133,14 @@ function App() {
     if (user) setupNotifications();
   }, [user]);
 
-  // Theme + Google Fit connection
+  // Theme init
   useEffect(() => {
     const theme = localStorage.getItem("theme") || "dark";
     document.body.className = `theme-${theme}`;
-    if (!isNative) return;
-
-    const checkGoogleConnection = async () => {
-      try {
-        const { GoogleFit } = await import("capacitor-google-fit");
-        await GoogleFit.connect();
-        // Persist connection so the screen doesn't show on next launch
-        localStorage.setItem("googleFitConnected", "true");
-        setIsConnected(true);
-      } catch (e) {
-        // Only reset if we weren't already connected — don't flash the screen
-        // on transient errors for users who already connected previously
-        if (localStorage.getItem("googleFitConnected") !== "true") {
-          console.error("Google Fit Connection Error:", e);
-          setIsConnected(false);
-        }
-      }
-    };
-    checkGoogleConnection();
   }, []);
 
-  // Steps refresh on app resume
-  useEffect(() => {
-    if (!isConnected || !isNative) return;
-    let handle = null;
-    const attach = async () => {
-      if (!CapacitorApp) return;
-      handle = await CapacitorApp.addListener("appStateChange", async ({ isActive }) => {
-        if (!isActive) return;
-        try {
-          const count = await fetchTodayStepCount();
-          persistStepMetrics(count);
-          broadcastStepsSynced(count);
-          await syncToSupabase();
-        } catch (e) {
-          console.error("Steps refresh on resume:", e);
-        }
-      });
-    };
-    attach();
-    return () => { if (handle) handle.remove(); };
-  }, [isConnected]);
 
-  const handleConnect = async () => {
-    try {
-      if (isNative) {
-        const { GoogleFit } = await import("capacitor-google-fit");
-        await GoogleFit.connect();
-      }
-      localStorage.setItem("googleFitConnected", "true");
-      setIsConnected(true);
-    } catch (err) {
-      console.error("Connection failed", err);
-      alert("Bhai, Google Fit connect nahi ho paya. Console check kar!");
-    }
-  };
+
 
   // Streak & day rollover
   useEffect(() => {

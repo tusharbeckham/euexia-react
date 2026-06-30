@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "upload-update": "npm run build && npx @capgo/cli upload"
+    "upload-update": "npm run build && npx @capgo/cli bundle upload -c production"
   },
   "dependencies": {
     "@capacitor/android": "^8.1.0",

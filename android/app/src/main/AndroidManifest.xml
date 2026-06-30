@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="true" />
 
@@ -33,7 +35,8 @@
             android:name=".BackgroundStepService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="dataSync"
+            android:foregroundServiceType="health|dataSync"
+            android:stopWithTask="false"
         />
 
         <provider

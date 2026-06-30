@@ -45,5 +45,17 @@ public class StepSensorPlugin extends Plugin {
         }
         call.resolve();
     }
+
+    @PluginMethod
+    public void getLogs(PluginCall call) {
+        SharedPreferences prefs = getContext().getSharedPreferences(
+            BackgroundStepService.PREFS_NAME,
+            Context.MODE_PRIVATE
+        );
+        String logs = prefs.getString("debug_logs", "No logs yet");
+        JSObject ret = new JSObject();
+        ret.put("value", logs);
+        call.resolve(ret);
+    }
 }
 

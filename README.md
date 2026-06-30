@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/assets/hero.png" width="120" alt="Euexia" />
+<img src="resources/icon.png" width="120" alt="Euexia" />
 
 <br/>
 <br/>
@@ -44,7 +44,7 @@ The name *Euexia* (εὐεξία) is an ancient Greek word meaning *"a state of 
 <img src="screenshots/dashboard.png" width="200" />
 <img src="screenshots/workout.png" width="200" />
 <img src="screenshots/streak.png" width="200" />
-<img src="screenshots/dark-theme.png" width="200" />
+<img src="screenshots/light-theme.png" width="200" />
 </div>
 
 ---

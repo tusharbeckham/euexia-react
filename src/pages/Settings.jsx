@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Target, Droplets, Flame, Bell, Moon, Sun, LogOut } from "lucide-react";
 import Toast from "../components/Toast";
 import { supabase } from "../services/supabase";
 import { onLogout } from "../utils/authBridge";
+import { Capacitor, registerPlugin } from "@capacitor/core";
+
+const isNative = Capacitor.isNativePlatform();
+const StepSensor = isNative ? registerPlugin("StepSensor") : null;
 
 function Settings({ onThemeChange }) {
   const [goals, setGoals] = useState({

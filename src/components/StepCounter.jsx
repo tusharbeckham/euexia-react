@@ -73,13 +73,8 @@ function StepCounter() {
     };
   }, [today]);
 
-  // LocalStorage update logic
-  useEffect(() => {
-    localStorage.setItem("steps", steps.toString());
-    localStorage.setItem("steps_date", today);
-    localStorage.setItem("kms", kms);
-    localStorage.setItem("stepCalories", String(calories));
-  }, [steps, kms, calories, today]);
+
+
 
   const percent = Math.min((steps / goal) * 100, 100);
   const isGoalDone = steps >= goal;
