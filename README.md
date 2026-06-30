@@ -38,16 +38,6 @@ The name *Euexia* (εὐεξία) is an ancient Greek word meaning *"a state of 
 
 ---
 
-## Screenshots
-
-<div align="center">
-<img src="screenshots/dashboard.jpeg" width="200" />
-<img src="screenshots/workout.jpeg" width="200" />
-<img src="screenshots/streak.jpeg" width="200" />
-<img src="screenshots/light-theme.jpeg" width="200" />
-</div>
-
----
 
 ## Features
 
