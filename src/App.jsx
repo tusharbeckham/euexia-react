@@ -11,6 +11,7 @@ import { supabase } from "./services/supabase";
 import { syncToSupabase, loadFromSupabase } from "./services/syncService";
 import { checkNativeAuth } from "./utils/authBridge";
 import { onLoginSuccess } from "./utils/authBridge";
+import { withTimeout } from "./utils/withTimeout";
 import "./App.css";
 
 let CapacitorApp = null;
@@ -70,11 +71,28 @@ function App() {
   useEffect(() => {
     const init = async () => {
       await checkNativeAuth().catch(() => {});
-      const { data: { session } } = await supabase.auth.getSession();
+      // getSession() calls fetch() with no timeout. On Android, mobile data can
+      // report "connected" while having no real internet (dead APN / exhausted
+      // data pack) — the fetch then hangs forever and setAuthLoading(false)
+      // below would never run, freezing the loading spinner. Cap it at 7s and
+      // fall back to a null session so the app always reaches Auth/Dashboard.
+      const { data: { session } } = await withTimeout(
+        supabase.auth.getSession(),
+        7000,
+        { data: { session: null } }
+      );
       setUser(session?.user ?? null);
       if (session?.user) {
-        await loadFromSupabase();
-        await onLoginSuccess(); // Ensure native layer knows we are logged in to start the step service
+        // These make their own unguarded network calls (loadFromSupabase ->
+        // supabase.auth.getUser() -> fetch()). A dead network makes them hang
+        // rather than reject, so a plain .catch() can't recover — they must be
+        // timed out too, otherwise setAuthLoading(false) is never reached for a
+        // returning user whose stored token is still valid (getSession returns
+        // instantly from storage, no refresh, so the getSession timeout above
+        // never fires). withTimeout guards the hang; .catch() swallows any
+        // rejection so neither can block the two lines below.
+        await withTimeout(loadFromSupabase(), 7000).catch(() => {});
+        await withTimeout(onLoginSuccess(), 7000).catch(() => {}); // Ensure native layer knows we are logged in to start the step service
       }
       setAuthLoading(false);
       if (CapacitorUpdater) {

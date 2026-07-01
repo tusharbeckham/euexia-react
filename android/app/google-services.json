@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "628187949955",
+    "project_id": "euexia-ba0ed",
+    "storage_bucket": "euexia-ba0ed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:628187949955:android:b0cd262f218851e42e24b6",
+        "android_client_info": {
+          "package_name": "com.euexia.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDINBnUv7wZNC1pI3nYzTIoGuAYQOWjFOU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
