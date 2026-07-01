@@ -45,12 +45,13 @@ The name *Euexia* (εὐεξία) is an ancient Greek word meaning *"a state of 
 |---|---|
 | **Native Background Step Counting** | Custom Java foreground service (`START_STICKY`) reads `Sensor.TYPE_STEP_COUNTER` directly — steps counted even when app is fully closed and swiped away |
 | **Smart Day Rollover** | Daily step count resets at 5:00 AM natively in Java — handled even while the app is closed |
-| **Google Fit Integration** | Secondary step data layer, auto-syncs on every app resume via `appStateChange` |
 | **Cloud Sync** | All health data syncs to Supabase every 30s, restores on login across devices |
-| **Water Tracker** | Daily hydration logging with animated goal progress ring |
+| **Water Tracker** | Daily hydration logging with per-glass progress bar and goal-reached celebration |
 | **Workout Log** | 35+ exercises with MET-based calorie calculation and intelligent double-count protection for phone-carried cardio |
 | **Streak System** | Daily goal tracking with streak counter and celebration animation |
 | **Weekly Summary** | Rolling 7-day breakdown with per-day stats |
+| **Profile** | Personal stats (name, age, height, weight) synced to Supabase — weight feeds the MET-based calorie math |
+| **Customizable Goals** | Per-metric daily targets (steps, water, calories) with range validation, editable in Settings |
 | **Push Notifications** | Water reminders, step nudges, streak alerts — local, no server needed |
 | **Dark / Light Theme** | Full CSS variable theming, toggle in Settings |
 
@@ -64,9 +65,9 @@ The name *Euexia* (εὐεξία) is an ancient Greek word meaning *"a state of 
 | Mobile Bridge | Capacitor 8 (Android) |
 | Native Plugin | Custom Java Foreground Service + Capacitor Bridge |
 | Backend | Supabase (Postgres + Auth) |
-| Auth | Email/Password + Google OAuth |
-| Fitness API | Google Fit (`@perfood/capacitor-google-fit`) |
+| Auth | Supabase email/password + native Google sign-in (`@capgo/capacitor-social-login`) |
 | Notifications | `@capacitor/local-notifications` |
+| Live Updates | OTA bundle updates via `@capgo/capacitor-updater` |
 | Animation | Framer Motion + `@react-spring/web` |
 | Icons | lucide-react |
 | Styling | Plain CSS3 + CSS variables — no Tailwind |
@@ -75,28 +76,33 @@ The name *Euexia* (εὐεξία) is an ancient Greek word meaning *"a state of 
 
 ## Native Architecture
 
-The step counting system is the core technical achievement of this project. Most React + Capacitor health apps rely entirely on Google Fit. Euexia uses a custom Java plugin with a persistent foreground service that reads the hardware sensor directly.
+The step counting system is the core technical achievement of this project. Most React + Capacitor health apps rely entirely on Google Fit. Euexia uses custom Java plugins backed by a persistent foreground service that reads the hardware sensor directly.
 
 ```
 android/app/src/main/java/com/euexia/app/
 │
 ├── MainActivity.java
-│   ├── Registers StepSensorPlugin with Capacitor bridge
-│   ├── Requests ACTIVITY_RECOGNITION permission at runtime (Android 10+)
-│   └── Starts BackgroundStepService on permission grant
+│   ├── Registers StepSensor, AuthBridge & Google SocialLogin plugins
+│   ├── Requests ACTIVITY_RECOGNITION (Android 10+) & POST_NOTIFICATIONS (Android 13+) at runtime
+│   └── Starts BackgroundStepService once the user is logged in + permission granted
 │
 ├── BackgroundStepService.java
 │   ├── Android Foreground Service (START_STICKY)
-│   ├── Registers Sensor.TYPE_STEP_COUNTER
+│   ├── Registers Sensor.TYPE_STEP_COUNTER (falls back to TYPE_STEP_DETECTOR on OEMs where it won't register)
 │   ├── Persists daily step delta to SharedPreferences on every sensor event
 │   ├── Handles day rollover at 5:00 AM (even while app is closed)
 │   ├── Handles device reboot (sensor value reset to 0)
 │   └── Auto-restarts if killed by Android — no steps ever missed
 │
-└── StepSensorPlugin.java
-    ├── Capacitor JS bridge — name: "StepSensor"
-    ├── Exposes getSteps() method to React
-    └── Reads from SharedPreferences — fully decoupled from sensor lifecycle
+├── StepSensorPlugin.java
+│   ├── Capacitor JS bridge — name: "StepSensor"
+│   ├── Exposes getSteps() / setSteps() to React
+│   └── Reads from SharedPreferences — fully decoupled from sensor lifecycle
+│
+└── AuthBridgePlugin.java
+    ├── Capacitor JS bridge — name: "AuthBridge"
+    ├── Persists login state to SharedPreferences
+    └── Starts the step service on login, stops it on logout
 ```
 
 **Why this matters:**
@@ -133,7 +139,8 @@ document.addEventListener("visibilitychange", () => {
 |---|---|
 | Core health tracking (steps, water, workouts, streaks) | ✅ Complete |
 | Native Android foreground service | ✅ Complete |
-| Google Fit + Supabase cloud sync | ✅ Complete |
+| Supabase cloud sync | ✅ Complete |
+| Over-the-air (OTA) updates via Capgo | ✅ Complete |
 | Push notifications | ✅ Complete |
 | Dark / Light theme | ✅ Complete |
 | Custom app icon + notification icon | ✅ Complete |
