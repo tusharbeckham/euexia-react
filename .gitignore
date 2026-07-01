@@ -25,6 +25,7 @@ dist-ssr
 *.sw?
 
 # ── Source code (private pending Play Store launch) ──
+src/
 
 # ── Environment ──
 .env.local
