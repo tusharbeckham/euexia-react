@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { Capacitor, registerPlugin } from "@capacitor/core";
+import { withTimeout } from "../utils/withTimeout";
 
 const isNative = Capacitor.isNativePlatform();
 const StepSensor = isNative ? registerPlugin("StepSensor") : null;
@@ -11,7 +12,11 @@ const today = () => {
 };
 
 export async function syncToSupabase() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await withTimeout(
+    supabase.auth.getUser(),
+    7000,
+    { data: { user: null } }
+  );
   if (!user) return;
 
   // On native, always read the live step count from the hardware service
@@ -48,7 +53,11 @@ export async function syncToSupabase() {
 }
 
 export async function loadFromSupabase() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await withTimeout(
+    supabase.auth.getUser(),
+    7000,
+    { data: { user: null } }
+  );
   if (!user) return;
 
   const meta = user.user_metadata || {};
@@ -112,8 +121,21 @@ export async function loadFromSupabase() {
     localStorage.setItem("weeklyData", JSON.stringify(weeklyData));
 
     if (todayLog) {
-      if (todayLog.water) localStorage.setItem("water", String(todayLog.water));
-      if (todayLog.streak) localStorage.setItem("streak", String(todayLog.streak));
+      // Same "highest value wins" guard as steps below. loadFromSupabase()
+      // runs on every auth event (sign-in, token refresh, resume), so a stale
+      // or lower cloud value must never roll back a locally-higher one — e.g.
+      // a token refresh firing right after the user logged water/extended a
+      // streak, but before the 30s push uploaded it, would otherwise clobber
+      // the newer local value. Only adopt the cloud value when it is strictly
+      // greater than what the device currently has.
+      if (todayLog.water) {
+        const localWater = Number(localStorage.getItem("water")) || 0;
+        if (todayLog.water > localWater) localStorage.setItem("water", String(todayLog.water));
+      }
+      if (todayLog.streak) {
+        const localStreak = Number(localStorage.getItem("streak")) || 0;
+        if (todayLog.streak > localStreak) localStorage.setItem("streak", String(todayLog.streak));
+      }
 
       // ── Steps: cloud value must NEVER be allowed to roll the live native
       //    counter backwards. loadFromSupabase() runs on every auth event
@@ -155,7 +177,11 @@ export async function loadFromSupabase() {
 }
 
 export async function syncWorkouts(workouts) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await withTimeout(
+    supabase.auth.getUser(),
+    7000,
+    { data: { user: null } }
+  );
   if (!user) return;
 
   await supabase.from("workouts")

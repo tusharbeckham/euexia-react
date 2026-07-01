@@ -104,8 +104,11 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        await loadFromSupabase();
-        if (_event === "SIGNED_IN") await onLoginSuccess();
+        // Same guard as init(): these make unguarded network calls that can
+        // hang on a dead-but-connected link. Bound them and swallow rejections
+        // so this async callback can never leave a dangling/unhandled promise.
+        await withTimeout(loadFromSupabase(), 7000).catch(() => {});
+        if (_event === "SIGNED_IN") await withTimeout(onLoginSuccess(), 7000).catch(() => {});
       }
     });
 
@@ -126,6 +129,10 @@ function App() {
   useEffect(() => {
     async function setupNotifications() {
       if (!isNative) return;
+      // Respect the user's explicit choice in Settings — if they turned
+      // reminders off there, never silently reschedule them on launch.
+      // (An absent flag keeps the existing default-on behavior for fresh installs.)
+      if (localStorage.getItem("notifications") === "false") return;
       try {
         const { requestNotificationPermission, scheduleWaterReminder } =
           await import("./services/notifications");

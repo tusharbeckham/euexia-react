@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "../services/supabase";
 import LogoImg from "../assets/hero.png";
 import { onLoginSuccess } from "../utils/authBridge";
+import { withTimeout } from "../utils/withTimeout";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,21 +17,34 @@ export default function Auth() {
     setError("");
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await withTimeout(
+          supabase.auth.signInWithPassword({ email, password }),
+          15000,
+          { error: { message: "Network timeout — check your connection and try again." } }
+        );
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await withTimeout(
+          supabase.auth.signUp({ email, password }),
+          15000,
+          { error: { message: "Network timeout — check your connection and try again." } }
+        );
         if (error) throw error;
-        await supabase.from("profiles").insert({
-          id: data.user.id,
-          display_name: name,
-        });
+        await withTimeout(
+          supabase.from("profiles").insert({
+            id: data.user.id,
+            display_name: name,
+          }),
+          15000,
+          undefined
+        );
       }
-      await onLoginSuccess(); // starts step service + saves auth state natively
+      await withTimeout(onLoginSuccess(), 15000, undefined); // starts step service + saves auth state natively
     } catch (e) {
       setError(e.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleGoogle = async () => {
@@ -38,17 +52,24 @@ export default function Auth() {
     setError("");
     try {
       if (window.Capacitor?.isNativePlatform()) {
-        // Native Android: show the Google account picker popup (no browser)
+        // Native Android: show the Google account picker popup (no browser).
+        // NOTE: the account-picker call is user-driven native UI, not a network
+        // fetch, so it is intentionally NOT wrapped in a timeout — only the
+        // Supabase network calls below are (those are what hang on a dead link).
         const { SocialLogin } = await import("@capgo/capacitor-social-login");
         const result = await SocialLogin.login({
           provider: "google",
           options: {},
         });
         if (result?.result?.idToken) {
-          const { data: authData, error } = await supabase.auth.signInWithIdToken({
-            provider: "google",
-            token: result.result.idToken,
-          });
+          const { data: authData, error } = await withTimeout(
+            supabase.auth.signInWithIdToken({
+              provider: "google",
+              token: result.result.idToken,
+            }),
+            15000,
+            { error: { message: "Network timeout — check your connection and try again." } }
+          );
           if (error) throw error;
 
           // Upsert profile row — works for both new signups and returning users
@@ -58,28 +79,37 @@ export default function Auth() {
               authData.user.user_metadata?.name ||
               authData.user.email?.split("@")[0] ||
               "User";
-            await supabase.from("profiles").upsert({
-              id: authData.user.id,
-              display_name: displayName,
-            }, { onConflict: "id" });
+            await withTimeout(
+              supabase.from("profiles").upsert({
+                id: authData.user.id,
+                display_name: displayName,
+              }, { onConflict: "id" }),
+              15000,
+              undefined
+            );
           }
 
-          await onLoginSuccess();
+          await withTimeout(onLoginSuccess(), 15000, undefined);
         } else {
           throw new Error("Google sign-in was cancelled");
         }
       } else {
         // Web fallback: browser redirect flow
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo: window.location.origin },
-        });
+        const { error } = await withTimeout(
+          supabase.auth.signInWithOAuth({
+            provider: "google",
+            options: { redirectTo: window.location.origin },
+          }),
+          15000,
+          { error: { message: "Network timeout — check your connection and try again." } }
+        );
         if (error) throw error;
       }
     } catch (e) {
       setError(e.message || "Google sign-in failed");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
