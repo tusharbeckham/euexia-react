@@ -23,7 +23,13 @@ public class AuthBridgePlugin extends Plugin {
         ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
            .edit().putBoolean(KEY_LOGGED_IN, true).apply();
 
-        ((MainActivity) getActivity()).requestPermissionThenStart();
+        // getActivity() can be null (plugin invoked while the Activity is
+        // detached / being recreated). instanceof is also false for null, so
+        // this single check guards against both NPE and ClassCastException.
+        android.app.Activity activity = getActivity();
+        if (activity instanceof MainActivity) {
+            ((MainActivity) activity).requestPermissionThenStart();
+        }
         call.resolve();
     }
 
