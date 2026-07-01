@@ -27,10 +27,44 @@ function Settings({ onThemeChange }) {
     setGoals({ ...goals, [e.target.name]: e.target.value });
   }
 
-  function toggleNotifications() {
+  async function toggleNotifications() {
     const newVal = !notifications;
     setNotifications(newVal);
     localStorage.setItem("notifications", newVal.toString());
+
+    try {
+      const {
+        requestNotificationPermission,
+        scheduleWaterReminder,
+        cancelAllNotifications,
+      } = await import("../services/notifications");
+
+      if (newVal) {
+        // Turning ON: we need permission before we can schedule anything.
+        const granted = await requestNotificationPermission();
+        if (!granted) {
+          // Permission refused (or unavailable, e.g. on web) — keep the toggle
+          // truthful by reverting it, and explain why nothing was scheduled.
+          setNotifications(false);
+          localStorage.setItem("notifications", "false");
+          setToastMsg("Enable notifications in system settings to get reminders.");
+          setShowToast(true);
+          return;
+        }
+        await scheduleWaterReminder();
+        // Coordinate with App.jsx setupNotifications() so it won't reschedule.
+        localStorage.setItem(
+          "notificationsScheduledAt",
+          new Date().toISOString().slice(0, 10),
+        );
+      } else {
+        // Turning OFF: actually cancel the scheduled reminders.
+        await cancelAllNotifications();
+        localStorage.removeItem("notificationsScheduledAt");
+      }
+    } catch (e) {
+      console.error("Notification toggle error:", e);
+    }
   }
 
   function toggleTheme() {
