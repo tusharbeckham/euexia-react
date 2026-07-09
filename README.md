@@ -170,7 +170,7 @@ The full React source will remain private until after the Play Store launch. The
 
 ## License
 
-Copyright © 2026 Tushar Beckham. All rights reserved.
+Copyright © 2026 Tushar. All rights reserved.
 
 This repository is publicly visible for portfolio purposes only. Copying, forking, or using this code in your own projects is not permitted. See `LICENSE` for full terms.
 
@@ -178,7 +178,7 @@ This repository is publicly visible for portfolio purposes only. Copying, forkin
 
 <div align="center">
 
-Built solo by <a href="https://github.com/tusharbeckham">Tushar Beckham</a>
+Built solo by <a href="https://github.com/tusharbeckham">Tushar</a>
 <br/>
 ⭐ Star this repo if you found the native step tracking approach useful
 
